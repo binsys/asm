@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Constants;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.FieldInsnNode;
@@ -47,7 +47,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
  * @author Eric Bruneton
  */
 
-public class DataflowInterpreter implements Opcodes, Interpreter {
+public class DataflowInterpreter implements Constants, Interpreter {
 
   public Value newValue (final Type type) {
     return new DataflowValue(type == null ? 1 : type.getSize());
@@ -156,15 +156,7 @@ public class DataflowInterpreter implements Opcodes, Interpreter {
   public Value merge (final Value v, final Value w) {
     DataflowValue dv = (DataflowValue)v;
     DataflowValue dw = (DataflowValue)w;
-    if (dv.insns instanceof SmallSet && dw.insns instanceof SmallSet) {
-      Set s = ((SmallSet)dv.insns).union((SmallSet)dw.insns);
-      if (s == dv.insns && dv.size == dw.size) {
-        return v;
-      } else {
-        return new DataflowValue(Math.min(dv.size, dw.size), s);
-      }
-    }
-    if (dv.size != dw.size || !dv.insns.containsAll(dw.insns)) {
+    if (dv.size != dw.size || !dv.insns.equals(dw.insns)) {
       Set s = new HashSet();
       s.addAll(dv.insns);
       s.addAll(dw.insns);

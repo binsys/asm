@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,8 @@
 
 package org.objectweb.asm.tree.analysis;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -66,12 +68,13 @@ public class DataflowValue implements Value {
   public final Set insns;
   
   public DataflowValue (final int size) {
-    this(size, SmallSet.EMPTY_SET);
+    this(size, Collections.EMPTY_SET);
   }
   
   public DataflowValue (final int size, final AbstractInsnNode insn) {
     this.size = size;
-    this.insns = new SmallSet(insn, null);
+    this.insns = new HashSet();
+    this.insns.add(insn);
   }
   
   public DataflowValue (final int size, final Set insns) {

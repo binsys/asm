@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents an instruction with a single int operand.
@@ -47,7 +47,7 @@ public class IntInsnNode extends AbstractInsnNode {
   public int operand;
 
   /**
-   * Constructs a new {@link IntInsnNode}.
+   * Constructs a new {@link IntInsnNode IntInsnNode} object.
    *
    * @param opcode the opcode of the instruction to be constructed. This opcode
    *      must be BIPUSH, SIPUSH or NEWARRAY.
@@ -70,11 +70,7 @@ public class IntInsnNode extends AbstractInsnNode {
     this.opcode = opcode;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitIntInsn(opcode, operand);
-  }
-
-  public int getType () {
-    return INT_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitIntInsn(opcode, operand);
   }
 }

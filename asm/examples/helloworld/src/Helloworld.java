@@ -1,6 +1,6 @@
 /***
  * ASM examples: examples showing how ASM can be used
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,6 @@
  */
 
 import org.objectweb.asm.*;
-
 import java.lang.reflect.*;
 import java.io.FileOutputStream;
 
@@ -37,7 +36,7 @@ import java.io.FileOutputStream;
  * @author Eric Bruneton
  */
 
-public class Helloworld extends ClassLoader implements Opcodes {
+public class Helloworld extends ClassLoader implements Constants {
 
   public static void main (final String args[]) throws Exception {
 
@@ -55,10 +54,10 @@ public class Helloworld extends ClassLoader implements Opcodes {
     // creates a ClassWriter for the Example public class,
     // which inherits from Object
     ClassWriter cw = new ClassWriter(false);
-    cw.visit(V1_1, ACC_PUBLIC, "Example", null, "java/lang/Object", null);
+    cw.visit(V1_1, ACC_PUBLIC, "Example", "java/lang/Object", null, null);
 
     // creates a MethodWriter for the (implicit) constructor
-    MethodVisitor mw = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
+    CodeVisitor mw = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
     // pushes the 'this' variable
     mw.visitVarInsn(ALOAD, 0);
     // invokes the super class constructor
@@ -66,7 +65,6 @@ public class Helloworld extends ClassLoader implements Opcodes {
     mw.visitInsn(RETURN);
     // this code uses a maximum of one stack element and one local variable
     mw.visitMaxs(1, 1);
-    mw.visitEnd();
 
     // creates a MethodWriter for the 'main' method
     mw = cw.visitMethod(
@@ -82,7 +80,6 @@ public class Helloworld extends ClassLoader implements Opcodes {
     mw.visitInsn(RETURN);
     // this code uses a maximum of two stack elements and two local variables
     mw.visitMaxs(2, 2);
-    mw.visitEnd();
 
     // gets the bytecode of the Example class, and loads it dynamically
     byte[] code = cw.toByteArray();

@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a local variable instruction. A local variable
@@ -50,7 +50,8 @@ public class VarInsnNode extends AbstractInsnNode {
   public int var;
 
   /**
-   * Constructs a new {@link VarInsnNode}.
+   * Visits a local variable instruction. A local variable instruction is an
+   * instruction that loads or stores the value of a local variable.
    *
    * @param opcode the opcode of the local variable instruction to be
    *      constructed. This opcode must be ILOAD, LLOAD, FLOAD, DLOAD, ALOAD,
@@ -75,11 +76,7 @@ public class VarInsnNode extends AbstractInsnNode {
     this.opcode = opcode;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitVarInsn(opcode, var);
-  }
-
-  public int getType () {
-    return VAR_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitVarInsn(opcode, var);
   }
 }

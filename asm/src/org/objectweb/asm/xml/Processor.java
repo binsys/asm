@@ -189,10 +189,9 @@ public class Processor {
       inDocHandler.startElement( "", "classes", "classes", new AttributesImpl());
     }
     
-    int i = 0;
+    int n = 0;
     ZipEntry ze = null;
     while(( ze = zis.getNextEntry())!=null) {
-      update( ze.getName(), n++);
       if( isClassEntry( ze)) {
         processEntry( zis, ze, inDocHandlerFactory);
       } else {
@@ -201,7 +200,8 @@ public class Processor {
         entryElement.closeEntry();
       }      
       
-      i++;
+      n++;
+      update( ze.getName());
     }
     
     if( inDocHandler!=null && inRepresentation!=SINGLE_XML) {
@@ -215,16 +215,16 @@ public class Processor {
     zos.flush();
     zos.close();
     
-    return i;
+    return n;
   }
 
   private void copyEntry( InputStream is, OutputStream os) throws IOException {
     if( outRepresentation==SINGLE_XML) return;
       
     byte[] buff = new byte[2048];
-    int i;
-    while ((i = is.read(buff)) != -1) {
-      os.write(buff, 0, i);
+    int n;
+    while ((n = is.read(buff)) != -1) {
+      os.write(buff, 0, n);
     }
   }
 
@@ -256,16 +256,17 @@ public class Processor {
       
       }
     } catch( Exception ex) {
-      update( ze.getName(), 0);
-      update( ex, 0);
+      update( ze.getName());
+      update( ex);
     }
   }
 
   private EntryElement getEntryElement( ZipOutputStream zos) {
     if( outRepresentation==SINGLE_XML) {
       return new SingleDocElement( zos);
+    } else {
+      return new ZipEntryElement( zos);
     }
-    return new ZipEntryElement( zos);
   }
 
   /*
@@ -317,15 +318,15 @@ public class Processor {
       // }
       zis.read(buff);
       return buff;
+    } else {
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      byte[] buff = new byte[4096];
+      int n;
+      while(( n = zis.read(buff)) != -1) {
+        bos.write(buff, 0, n);
+      }
+      return bos.toByteArray();
     }
-    
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    byte[] buff = new byte[4096];
-    int i;
-    while(( i = zis.read(buff)) != -1) {
-      bos.write(buff, 0, i);
-    }
-    return bos.toByteArray();
   }
   
 
@@ -333,7 +334,7 @@ public class Processor {
    *  (non-Javadoc)
    * @see java.util.Observer#update(java.util.Observable, java.lang.Object)
    */
-  protected void update( Object arg, int n) {
+  public void update( Object arg) {
     if( arg instanceof Throwable) {
       (( Throwable) arg).printStackTrace();
     } else {
@@ -341,6 +342,7 @@ public class Processor {
         System.err.println( n+" "+arg);
       }
     }
+    n++;
   }
   
   public static void main( String[] args) throws Exception {
@@ -389,7 +391,7 @@ public class Processor {
     int n = m.process();
     long l2 = System.currentTimeMillis();
     System.err.println( n);
-    System.err.println( ""+( l2-l1)+"ms  "+(1000f*n/( l2-l1))+" resources/sec");
+    System.err.println( ""+( l2-l1)+"ms  "+(1000f*n/( l2-l1))+" files/sec");
   }
 
   private static int getRepresentation( String s) {

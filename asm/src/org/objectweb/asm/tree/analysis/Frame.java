@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,7 +33,7 @@ package org.objectweb.asm.tree.analysis;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Constants;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.IincInsnNode;
@@ -53,16 +53,16 @@ import org.objectweb.asm.tree.VarInsnNode;
 public class Frame {
   
   /**
-   * The local variables and operand stack of this frame.
+   * The local variables of this frame.
    */
   
-  private Value[] values;
+  private Value[] locals;
   
   /**
-   * The number of local variables of this frame.
+   * The operand stack of this frame.
    */
   
-  private int locals;
+  private Value[] stack;
 
   /**
    * The number of elements in the operand stack.
@@ -78,8 +78,8 @@ public class Frame {
    */
   
   public Frame (final int nLocals, final int nStack) {
-    this.values = new Value[nLocals+nStack];
-    this.locals = nLocals;
+    this.locals = new Value[nLocals];
+    this.stack = new Value[nStack];
   }
   
   /**
@@ -89,7 +89,7 @@ public class Frame {
    */
   
   public Frame (final Frame src) {
-    this(src.locals, src.values.length - src.locals);
+    this(src.locals.length, src.stack.length);
     init(src);
   }
   
@@ -101,7 +101,8 @@ public class Frame {
    */
   
   public Frame init (final Frame src) {
-    System.arraycopy(src.values, 0, values, 0, values.length);
+    System.arraycopy(src.locals, 0, locals, 0, locals.length);
+    System.arraycopy(src.stack, 0, stack, 0, src.top);
     top = src.top;
     return this;
   }
@@ -113,7 +114,7 @@ public class Frame {
    */
   
   public int getLocals () {
-    return locals;
+    return locals.length;
   }
   
   /**
@@ -125,10 +126,10 @@ public class Frame {
    */
   
   public Value getLocal (final int i) throws AnalyzerException {
-    if (i >= locals) {
+    if (i >= locals.length) {
       throw new AnalyzerException("Trying to access an inexistant local variable");
     }
-    return values[i];
+    return locals[i];
   }
   
   /**
@@ -140,10 +141,10 @@ public class Frame {
    */
   
   public void setLocal (final int i, final Value value) throws AnalyzerException {
-    if (i >= locals) {
+    if (i >= locals.length) {
       throw new AnalyzerException("Trying to access an inexistant local variable");
     }
-    values[i] = value;
+    locals[i] = value;
   }
 
   /**
@@ -169,7 +170,7 @@ public class Frame {
     if (i >= top) {
       throw new AnalyzerException("Trying to access an inexistant stack element");
     }
-    return values[i + locals];
+    return stack[i];
   }
   
   /**
@@ -191,7 +192,7 @@ public class Frame {
     if (top == 0) {
       throw new AnalyzerException("Cannot pop operand off an empty stack.");
     }
-    return values[--top + locals];
+    return stack[--top];
   }
   
   /**
@@ -202,10 +203,10 @@ public class Frame {
    */
   
   public void push (final Value value) throws AnalyzerException {
-    if (top + locals >= values.length) {
+    if (top >= stack.length) {
       throw new AnalyzerException("Insufficient maximum stack size.");
     }
-    values[top++ + locals] = value;
+    stack[top++] = value;
   }
   
   public void execute (
@@ -217,52 +218,52 @@ public class Frame {
     int var;
     
     switch (insn.getOpcode()) {
-      case Opcodes.NOP:
+      case Constants.NOP:
         break;
-      case Opcodes.ACONST_NULL:
-      case Opcodes.ICONST_M1:
-      case Opcodes.ICONST_0:
-      case Opcodes.ICONST_1:
-      case Opcodes.ICONST_2:
-      case Opcodes.ICONST_3:
-      case Opcodes.ICONST_4:
-      case Opcodes.ICONST_5:
-      case Opcodes.LCONST_0:
-      case Opcodes.LCONST_1:
-      case Opcodes.FCONST_0:
-      case Opcodes.FCONST_1:
-      case Opcodes.FCONST_2:
-      case Opcodes.DCONST_0:
-      case Opcodes.DCONST_1:
-      case Opcodes.BIPUSH:
-      case Opcodes.SIPUSH:
-      case Opcodes.LDC:
+      case Constants.ACONST_NULL:
+      case Constants.ICONST_M1:
+      case Constants.ICONST_0:
+      case Constants.ICONST_1:
+      case Constants.ICONST_2:
+      case Constants.ICONST_3:
+      case Constants.ICONST_4:
+      case Constants.ICONST_5:
+      case Constants.LCONST_0:
+      case Constants.LCONST_1:
+      case Constants.FCONST_0:
+      case Constants.FCONST_1:
+      case Constants.FCONST_2:
+      case Constants.DCONST_0:
+      case Constants.DCONST_1:
+      case Constants.BIPUSH:
+      case Constants.SIPUSH:
+      case Constants.LDC:
         push(interpreter.newOperation(insn));
         break;
-      case Opcodes.ILOAD:
-      case Opcodes.LLOAD:
-      case Opcodes.FLOAD:
-      case Opcodes.DLOAD:
-      case Opcodes.ALOAD:
+      case Constants.ILOAD:
+      case Constants.LLOAD:
+      case Constants.FLOAD:
+      case Constants.DLOAD:
+      case Constants.ALOAD:
         push(interpreter.copyOperation(insn, getLocal(((VarInsnNode)insn).var)));
         break;
-      case Opcodes.IALOAD:
-      case Opcodes.LALOAD:
-      case Opcodes.FALOAD:
-      case Opcodes.DALOAD:
-      case Opcodes.AALOAD:
-      case Opcodes.BALOAD:
-      case Opcodes.CALOAD:
-      case Opcodes.SALOAD:
+      case Constants.IALOAD:
+      case Constants.LALOAD:
+      case Constants.FALOAD:
+      case Constants.DALOAD:
+      case Constants.AALOAD:
+      case Constants.BALOAD:
+      case Constants.CALOAD:
+      case Constants.SALOAD:
         value2 = pop();
         value1 = pop();
         push(interpreter.binaryOperation(insn, value1, value2));
         break;
-      case Opcodes.ISTORE:
-      case Opcodes.LSTORE:
-      case Opcodes.FSTORE:
-      case Opcodes.DSTORE:
-      case Opcodes.ASTORE:
+      case Constants.ISTORE:
+      case Constants.LSTORE:
+      case Constants.FSTORE:
+      case Constants.DSTORE:
+      case Constants.ASTORE:
         value1 = interpreter.copyOperation(insn, pop());
         var = ((VarInsnNode)insn).var;
         setLocal(var, value1);
@@ -273,32 +274,32 @@ public class Frame {
           setLocal(var - 1, interpreter.newValue(null));
         }
         break;
-      case Opcodes.IASTORE:
-      case Opcodes.LASTORE:
-      case Opcodes.FASTORE:
-      case Opcodes.DASTORE:
-      case Opcodes.AASTORE:
-      case Opcodes.BASTORE:
-      case Opcodes.CASTORE:
-      case Opcodes.SASTORE:
+      case Constants.IASTORE:
+      case Constants.LASTORE:
+      case Constants.FASTORE:
+      case Constants.DASTORE:
+      case Constants.AASTORE:
+      case Constants.BASTORE:
+      case Constants.CASTORE:
+      case Constants.SASTORE:
         value3 = pop();
         value2 = pop();
         value1 = pop();
         interpreter.ternaryOperation(insn, value1, value2, value3);
         break;
-      case Opcodes.POP:
+      case Constants.POP:
         if (pop().getSize() == 2) {
           throw new AnalyzerException("Illegal use of POP");
         }
         break;
-      case Opcodes.POP2:
+      case Constants.POP2:
         if (pop().getSize() == 1) {
           if (pop().getSize() != 1) {
             throw new AnalyzerException("Illegal use of POP2");
           }
         }
         break;
-      case Opcodes.DUP:
+      case Constants.DUP:
         value1 = pop();
         if (value1.getSize() != 1) {
           throw new AnalyzerException("Illegal use of DUP");
@@ -306,7 +307,7 @@ public class Frame {
         push(interpreter.copyOperation(insn, value1));
         push(interpreter.copyOperation(insn, value1));
         break;
-      case Opcodes.DUP_X1:
+      case Constants.DUP_X1:
         value1 = pop();
         value2 = pop();
         if (value1.getSize() != 1 || value2.getSize() != 1) {
@@ -316,7 +317,7 @@ public class Frame {
         push(interpreter.copyOperation(insn, value2));
         push(interpreter.copyOperation(insn, value1));
         break;
-      case Opcodes.DUP_X2:
+      case Constants.DUP_X2:
         value1 = pop();
         if (value1.getSize() == 1) {
           value2 = pop();
@@ -337,7 +338,7 @@ public class Frame {
           }
         }
         throw new AnalyzerException("Illegal use of DUP_X2");
-      case Opcodes.DUP2:
+      case Constants.DUP2:
         value1 = pop();
         if (value1.getSize() == 1) {
           value2 = pop();
@@ -354,7 +355,7 @@ public class Frame {
           break;
         }
         throw new AnalyzerException("Illegal use of DUP2");
-      case Opcodes.DUP2_X1:
+      case Constants.DUP2_X1:
         value1 = pop();
         if (value1.getSize() == 1) {
           value2 = pop();
@@ -379,7 +380,7 @@ public class Frame {
           }
         }
         throw new AnalyzerException("Illegal use of DUP2_X1");
-      case Opcodes.DUP2_X2:
+      case Constants.DUP2_X2:
         value1 = pop();
         if (value1.getSize() == 1) {
           value2 = pop();
@@ -424,7 +425,7 @@ public class Frame {
           }
         }
         throw new AnalyzerException("Illegal use of DUP2_X2");
-      case Opcodes.SWAP:
+      case Constants.SWAP:
         value2 = pop();
         value1 = pop();
         if (value1.getSize() != 1 || value2.getSize() != 1) {
@@ -433,144 +434,144 @@ public class Frame {
         push(interpreter.copyOperation(insn, value2));
         push(interpreter.copyOperation(insn, value1));
         break;
-      case Opcodes.IADD:
-      case Opcodes.LADD:
-      case Opcodes.FADD:
-      case Opcodes.DADD:
-      case Opcodes.ISUB:
-      case Opcodes.LSUB:
-      case Opcodes.FSUB:
-      case Opcodes.DSUB:
-      case Opcodes.IMUL:
-      case Opcodes.LMUL:
-      case Opcodes.FMUL:
-      case Opcodes.DMUL:
-      case Opcodes.IDIV:
-      case Opcodes.LDIV:
-      case Opcodes.FDIV:
-      case Opcodes.DDIV:
-      case Opcodes.IREM:
-      case Opcodes.LREM:
-      case Opcodes.FREM:
-      case Opcodes.DREM:
+      case Constants.IADD:
+      case Constants.LADD:
+      case Constants.FADD:
+      case Constants.DADD:
+      case Constants.ISUB:
+      case Constants.LSUB:
+      case Constants.FSUB:
+      case Constants.DSUB:
+      case Constants.IMUL:
+      case Constants.LMUL:
+      case Constants.FMUL:
+      case Constants.DMUL:
+      case Constants.IDIV:
+      case Constants.LDIV:
+      case Constants.FDIV:
+      case Constants.DDIV:
+      case Constants.IREM:
+      case Constants.LREM:
+      case Constants.FREM:
+      case Constants.DREM:
         value2 = pop();
         value1 = pop();
         push(interpreter.binaryOperation(insn, value1, value2));
         break;
-      case Opcodes.INEG:
-      case Opcodes.LNEG:
-      case Opcodes.FNEG:
-      case Opcodes.DNEG:
+      case Constants.INEG:
+      case Constants.LNEG:
+      case Constants.FNEG:
+      case Constants.DNEG:
         push(interpreter.unaryOperation(insn, pop()));
         break;
-      case Opcodes.ISHL:
-      case Opcodes.LSHL:
-      case Opcodes.ISHR:
-      case Opcodes.LSHR:
-      case Opcodes.IUSHR:
-      case Opcodes.LUSHR:
-      case Opcodes.IAND:
-      case Opcodes.LAND:
-      case Opcodes.IOR:
-      case Opcodes.LOR:
-      case Opcodes.IXOR:
-      case Opcodes.LXOR:
+      case Constants.ISHL:
+      case Constants.LSHL:
+      case Constants.ISHR:
+      case Constants.LSHR:
+      case Constants.IUSHR:
+      case Constants.LUSHR:
+      case Constants.IAND:
+      case Constants.LAND:
+      case Constants.IOR:
+      case Constants.LOR:
+      case Constants.IXOR:
+      case Constants.LXOR:
         value2 = pop();
         value1 = pop();
         push(interpreter.binaryOperation(insn, value1, value2));
         break;
-      case Opcodes.IINC:
+      case Constants.IINC:
         var = ((IincInsnNode)insn).var;
         setLocal(var, interpreter.unaryOperation(insn, getLocal(var)));
         break;
-      case Opcodes.I2L:
-      case Opcodes.I2F:
-      case Opcodes.I2D:
-      case Opcodes.L2I:
-      case Opcodes.L2F:
-      case Opcodes.L2D:
-      case Opcodes.F2I:
-      case Opcodes.F2L:
-      case Opcodes.F2D:
-      case Opcodes.D2I:
-      case Opcodes.D2L:
-      case Opcodes.D2F:
-      case Opcodes.I2B:
-      case Opcodes.I2C:
-      case Opcodes.I2S:
+      case Constants.I2L:
+      case Constants.I2F:
+      case Constants.I2D:
+      case Constants.L2I:
+      case Constants.L2F:
+      case Constants.L2D:
+      case Constants.F2I:
+      case Constants.F2L:
+      case Constants.F2D:
+      case Constants.D2I:
+      case Constants.D2L:
+      case Constants.D2F:
+      case Constants.I2B:
+      case Constants.I2C:
+      case Constants.I2S:
         push(interpreter.unaryOperation(insn, pop()));
         break;
-      case Opcodes.LCMP:
-      case Opcodes.FCMPL:
-      case Opcodes.FCMPG:
-      case Opcodes.DCMPL:
-      case Opcodes.DCMPG:
+      case Constants.LCMP:
+      case Constants.FCMPL:
+      case Constants.FCMPG:
+      case Constants.DCMPL:
+      case Constants.DCMPG:
         value2 = pop();
         value1 = pop();
         push(interpreter.binaryOperation(insn, value1, value2));
         break;
-      case Opcodes.IFEQ:
-      case Opcodes.IFNE:
-      case Opcodes.IFLT:
-      case Opcodes.IFGE:
-      case Opcodes.IFGT:
-      case Opcodes.IFLE:
+      case Constants.IFEQ:
+      case Constants.IFNE:
+      case Constants.IFLT:
+      case Constants.IFGE:
+      case Constants.IFGT:
+      case Constants.IFLE:
         interpreter.unaryOperation(insn, pop());
         break;
-      case Opcodes.IF_ICMPEQ:
-      case Opcodes.IF_ICMPNE:
-      case Opcodes.IF_ICMPLT:
-      case Opcodes.IF_ICMPGE:
-      case Opcodes.IF_ICMPGT:
-      case Opcodes.IF_ICMPLE:
-      case Opcodes.IF_ACMPEQ:
-      case Opcodes.IF_ACMPNE:
+      case Constants.IF_ICMPEQ:
+      case Constants.IF_ICMPNE:
+      case Constants.IF_ICMPLT:
+      case Constants.IF_ICMPGE:
+      case Constants.IF_ICMPGT:
+      case Constants.IF_ICMPLE:
+      case Constants.IF_ACMPEQ:
+      case Constants.IF_ACMPNE:
         value2 = pop();
         value1 = pop();
         interpreter.binaryOperation(insn, value1, value2);
         break;
-      case Opcodes.GOTO:
+      case Constants.GOTO:
         break;
-      case Opcodes.JSR:
+      case Constants.JSR:
         push(interpreter.newOperation(insn));
         break;
-      case Opcodes.RET:
+      case Constants.RET:
         break;
-      case Opcodes.TABLESWITCH:
-      case Opcodes.LOOKUPSWITCH:
-      case Opcodes.IRETURN:
-      case Opcodes.LRETURN:
-      case Opcodes.FRETURN:
-      case Opcodes.DRETURN:
-      case Opcodes.ARETURN:
+      case Constants.TABLESWITCH:
+      case Constants.LOOKUPSWITCH:
+      case Constants.IRETURN:
+      case Constants.LRETURN:
+      case Constants.FRETURN:
+      case Constants.DRETURN:
+      case Constants.ARETURN:
         interpreter.unaryOperation(insn, pop());
         break;
-      case Opcodes.RETURN:
+      case Constants.RETURN:
         break;
-      case Opcodes.GETSTATIC:
+      case Constants.GETSTATIC:
         push(interpreter.newOperation(insn));
         break;
-      case Opcodes.PUTSTATIC:
+      case Constants.PUTSTATIC:
         interpreter.unaryOperation(insn, pop());
         break;
-      case Opcodes.GETFIELD:
+      case Constants.GETFIELD:
         push(interpreter.unaryOperation(insn, pop()));
         break;
-      case Opcodes.PUTFIELD:
+      case Constants.PUTFIELD:
         value2 = pop();
         value1 = pop();
         interpreter.binaryOperation(insn, value1, value2);
         break;
-      case Opcodes.INVOKEVIRTUAL:
-      case Opcodes.INVOKESPECIAL:
-      case Opcodes.INVOKESTATIC:
-      case Opcodes.INVOKEINTERFACE:
+      case Constants.INVOKEVIRTUAL:
+      case Constants.INVOKESPECIAL:
+      case Constants.INVOKESTATIC:
+      case Constants.INVOKEINTERFACE:
         values = new ArrayList();
         String desc = ((MethodInsnNode)insn).desc;
         for (int i = Type.getArgumentTypes(desc).length; i > 0; --i) {
           values.add(0, pop());
         }
-        if (insn.getOpcode() != Opcodes.INVOKESTATIC) {
+        if (insn.getOpcode() != Constants.INVOKESTATIC) {
           values.add(0, pop());
         }
         if (Type.getReturnType(desc) == Type.VOID_TYPE) {
@@ -579,34 +580,34 @@ public class Frame {
           push(interpreter.naryOperation(insn, values));
         }
         break;
-      case Opcodes.NEW:
+      case Constants.NEW:
         push(interpreter.newOperation(insn));
         break;
-      case Opcodes.NEWARRAY:
-      case Opcodes.ANEWARRAY:
-      case Opcodes.ARRAYLENGTH:
+      case Constants.NEWARRAY:
+      case Constants.ANEWARRAY:
+      case Constants.ARRAYLENGTH:
         push(interpreter.unaryOperation(insn, pop()));
         break;
-      case Opcodes.ATHROW:
+      case Constants.ATHROW:
         interpreter.unaryOperation(insn, pop());
         break;
-      case Opcodes.CHECKCAST:
-      case Opcodes.INSTANCEOF:
+      case Constants.CHECKCAST:
+      case Constants.INSTANCEOF:
         push(interpreter.unaryOperation(insn, pop()));
         break;
-      case Opcodes.MONITORENTER:
-      case Opcodes.MONITOREXIT:
+      case Constants.MONITORENTER:
+      case Constants.MONITOREXIT:
         interpreter.unaryOperation(insn, pop());
         break;
-      case Opcodes.MULTIANEWARRAY:
+      case Constants.MULTIANEWARRAY:
         values = new ArrayList();
         for (int i = ((MultiANewArrayInsnNode)insn).dims; i > 0; --i) {
           values.add(0, pop());
         }
         push(interpreter.naryOperation(insn, values));
         break;
-      case Opcodes.IFNULL:
-      case Opcodes.IFNONNULL:
+      case Constants.IFNULL:
+      case Constants.IFNONNULL:
         interpreter.unaryOperation(insn, pop());
         break;
       default:
@@ -631,10 +632,17 @@ public class Frame {
       throw new AnalyzerException("Incompatible stack heights");
     }
     boolean changes = false;
-    for (int i = 0; i < locals + top; ++i) {
-      Value v = interpreter.merge(values[i], frame.values[i]);
-      if (v != values[i]) {
-        values[i] = v;
+    for (int i = 0; i < locals.length; ++i) {
+      Value v = interpreter.merge(locals[i], frame.locals[i]);
+      if (v != locals[i]) {
+        locals[i] = v;
+        changes |= true;
+      }
+    }
+    for (int i = 0; i < top; ++i) {
+      Value v = interpreter.merge(stack[i], frame.stack[i]);
+      if (v != stack[i]) {
+        stack[i] = v;
         changes |= true;
       }
     }
@@ -653,9 +661,9 @@ public class Frame {
   
   public boolean merge (final Frame frame, final boolean[] access) {
     boolean changes = false;
-    for (int i = 0; i < locals; ++i) {
-      if (!access[i] && !values[i].equals(frame.values[i])) {
-        values[i] = frame.values[i];
+    for (int i = 0; i < locals.length; ++i) {
+      if (!access[i] && !locals[i].equals(frame.locals[i])) {
+        locals[i] = frame.locals[i];
         changes = true;
       }
     }
@@ -670,12 +678,12 @@ public class Frame {
   
   public String toString () {
     StringBuffer b = new StringBuffer();
-    for (int i = 0; i < locals; ++i) {
-      b.append(values[i]);
+    for (int i = 0; i < locals.length; ++i) {
+      b.append(locals[i]);
     }
     b.append(' ');
     for (int i = 0; i < top; ++i) {
-      b.append(values[i + locals].toString());
+      b.append(stack[i].toString());
     }
     return b.toString();
   }

@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,8 +31,8 @@
 package org.objectweb.asm.tree;
 
 import org.objectweb.asm.Label;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Constants;
+import org.objectweb.asm.CodeVisitor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,14 +65,14 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
   public Label dflt;
 
   /**
-   * Beginnings of the handler blocks. This list is a list of {@link Label} 
-   * objects.
+   * Beginnings of the handler blocks. This list is a list of {@link Label
+   * Label} objects.
    */
 
   public final List labels;
 
   /**
-   * Constructs a new {@link TableSwitchInsnNode}.
+   * Constructs a new {@link TableSwitchInsnNode TableSwitchInsnNode}.
    *
    * @param min the minimum key value.
    * @param max the maximum key value.
@@ -87,7 +87,7 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
     final Label dflt,
     final Label[] labels)
   {
-    super(Opcodes.TABLESWITCH);
+    super(Constants.TABLESWITCH);
     this.min = min;
     this.max = max;
     this.dflt = dflt;
@@ -97,13 +97,9 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
     }
   }
 
-  public void accept (final MethodVisitor mv) {
+  public void accept (final CodeVisitor cv) {
     Label[] labels = new Label[this.labels.size()];
     this.labels.toArray(labels);
-    mv.visitTableSwitchInsn(min, max, dflt, labels);
-  }
-
-  public int getType () {
-    return TABLESWITCH_INSN;
+    cv.visitTableSwitchInsn(min, max, dflt, labels);
   }
 }

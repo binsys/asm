@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,9 +31,10 @@
 package org.objectweb.asm;
 
 /**
- * An empty {@link ClassVisitor} that delegates to another {@link ClassVisitor}. 
- * This class can be used as a super class to quickly implement usefull class 
- * adapter classes, just by overriding the necessary methods.
+ * An empty {@link ClassVisitor ClassVisitor} that delegates to another {@link
+ * ClassVisitor ClassVisitor}. This class can be used as a super class to
+ * quickly implement usefull class adapter classes, just by overriding the
+ * necessary methods.
  * 
  * @author Eric Bruneton
  */
@@ -41,13 +42,14 @@ package org.objectweb.asm;
 public class ClassAdapter implements ClassVisitor {
 
   /**
-   * The {@link ClassVisitor} to which this adapter delegates calls.
+   * The {@link ClassVisitor ClassVisitor} to which this adapter delegates
+   * calls.
    */
 
   protected ClassVisitor cv;
 
   /**
-   * Constructs a new {@link ClassAdapter} object.
+   * Constructs a new {@link ClassAdapter ClassAdapter} object.
    *
    * @param cv the class visitor to which this adapter must delegate calls.
    */
@@ -60,34 +62,11 @@ public class ClassAdapter implements ClassVisitor {
     final int version,
     final int access,
     final String name,
-    final String signature,
     final String superName,
-    final String[] interfaces)
+    final String[] interfaces,
+    final String sourceFile)
   {
-    cv.visit(version, access, name, signature, superName, interfaces);
-  }
-
-  public void visitSource (final String source, final String debug) {
-    cv.visitSource(source, debug);
-  }
-  
-  public void visitOuterClass (
-    final String owner, 
-    final String name,
-    final String desc) 
-  {
-    cv.visitOuterClass(owner, name, desc);
-  }
-
-  public AnnotationVisitor visitAnnotation (
-    final String desc, 
-    final boolean visible) 
-  {
-    return cv.visitAnnotation(desc, visible);
-  }
-
-  public void visitAttribute (final Attribute attr) {
-    cv.visitAttribute(attr);
+    cv.visit(version, access, name, superName, interfaces, sourceFile);
   }
 
   public void visitInnerClass (
@@ -99,25 +78,28 @@ public class ClassAdapter implements ClassVisitor {
     cv.visitInnerClass(name, outerName, innerName, access);
   }
 
-  public FieldVisitor visitField (
+  public void visitField (
     final int access,
     final String name,
     final String desc,
-    final String signature,
-    final Object value)
+    final Object value,
+    final Attribute attrs)
   {
-    return cv.visitField(access, name, desc, signature, value);
+    cv.visitField(access, name, desc, value, attrs);
   }
 
-  public MethodVisitor visitMethod (
+  public CodeVisitor visitMethod (
     final int access,
     final String name,
     final String desc,
-    final String signature,
-    final String[] exceptions)
+    final String[] exceptions,
+    final Attribute attrs)
   {
-    return new MethodAdapter(
-      cv.visitMethod(access, name, desc, signature, exceptions));
+    return new CodeAdapter(cv.visitMethod(access, name, desc, exceptions, attrs));
+  }
+
+  public void visitAttribute (final Attribute attr) {
+    cv.visitAttribute(attr);
   }
 
   public void visitEnd () {

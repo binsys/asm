@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,7 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a type instruction. A type instruction is an
@@ -44,18 +43,18 @@ public class TypeInsnNode extends AbstractInsnNode {
 
   /**
    * The operand of this instruction. This operand is a type descriptor (see
-   * {@link Type}).
+   * {@link org.objectweb.asm.Type Type}).
    */
 
   public String desc;
 
   /**
-   * Constructs a new {@link TypeInsnNode}.
+   * Constructs a new {@link TypeInsnNode TypeInsnNode} object.
    *
    * @param opcode the opcode of the type instruction to be constructed. This
-   *      opcode must be NEW, NEWARRAY, ANEWARRAY, CHECKCAST or INSTANCEOF.
+   *      opcode must be NEW, ANEWARRAY, CHECKCAST or INSTANCEOF.
    * @param desc the operand of the instruction to be constructed. This operand
-   *      is a type descriptor (see {@link Type}).
+   *      is a type descriptor (see {@link org.objectweb.asm.Type Type}).
    */
 
   public TypeInsnNode (final int opcode, final String desc) {
@@ -74,11 +73,7 @@ public class TypeInsnNode extends AbstractInsnNode {
     this.opcode = opcode;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitTypeInsn(opcode, desc);
-  }
-  
-  public int getType () {
-    return TYPE_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitTypeInsn(opcode, desc);
   }
 }

@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.CodeVisitor;
+import org.objectweb.asm.Constants;
 
 /**
  * A node that represents an IINC instruction.
@@ -54,23 +54,19 @@ public class IincInsnNode extends AbstractInsnNode {
   public int incr;
 
   /**
-   * Constructs a new {@link IincInsnNode}.
+   * Constructs a new {@link IincInsnNode IincInsnNode} node.
    *
    * @param var index of the local variable to be incremented.
    * @param incr increment amount to increment the local variable by.
    */
 
   public IincInsnNode (final int var, final int incr) {
-    super(Opcodes.IINC);
+    super(Constants.IINC);
     this.var = var;
     this.incr = incr;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitIincInsn(var, incr);
-  }
-
-  public int getType () {
-    return IINC_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitIincInsn(var, incr);
   }
 }

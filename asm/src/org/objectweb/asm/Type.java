@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,9 +35,8 @@ import java.lang.reflect.Method;
 /**
  * A Java type. This class can be used to make it easier to manipulate type
  * and method descriptors.
- *
- * @author Eric Bruneton
- * @author Chris Nokleberg
+ * 
+ * @author Eric Bruneton, Chris Nokleberg
  */
 
 public class Type {
@@ -455,14 +454,14 @@ public class Type {
       case FLOAT:   return "float";
       case LONG:    return "long";
       case DOUBLE:  return "double";
-      case ARRAY:
+      case ARRAY:   
         StringBuffer b = new StringBuffer(getElementType().getClassName());
         for (int i = getDimensions(); i > 0; --i) {
           b.append("[]");
         }
         return b.toString();
       //case OBJECT:
-      default:
+      default:      
         return new String(buf, off + 1, len - 2).replace('/', '.');
     }
   }
@@ -669,7 +668,7 @@ public class Type {
    */
 
   public int getOpcode (final int opcode) {
-    if (opcode == Opcodes.IALOAD || opcode == Opcodes.IASTORE) {
+    if (opcode == Constants.IALOAD || opcode == Constants.IASTORE) {
       switch (sort) {
         case BOOLEAN:
         case BYTE:

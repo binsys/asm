@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 package org.objectweb.asm.tree;
 
 import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a jump instruction. A jump instruction is an
@@ -50,7 +50,7 @@ public class JumpInsnNode extends AbstractInsnNode {
   public Label label;
 
   /**
-   * Constructs a new {@link JumpInsnNode}.
+   * Constructs a new {@link JumpInsnNode JumpInsnNode} object.
    *
    * @param opcode the opcode of the type instruction to be constructed. This
    *      opcode must be IFEQ, IFNE, IFLT, IFGE, IFGT, IFLE, IF_ICMPEQ,
@@ -79,11 +79,7 @@ public class JumpInsnNode extends AbstractInsnNode {
     this.opcode = opcode;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitJumpInsn(opcode, label);
-  }
-
-  public int getType () {
-    return JUMP_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitJumpInsn(opcode, label);
   }
 }

@@ -1,6 +1,6 @@
 /***
  * ASM examples: examples showing how ASM can be used
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,51 +34,53 @@ import java.util.List;
 import java.util.Set;
 
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Constants;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.TreeClassAdapter;
 import org.objectweb.asm.tree.VarInsnNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.BasicVerifier;
 import org.objectweb.asm.tree.analysis.DataflowInterpreter;
 import org.objectweb.asm.tree.analysis.DataflowValue;
 import org.objectweb.asm.tree.analysis.Frame;
-import org.objectweb.asm.util.TraceMethodVisitor;
+import org.objectweb.asm.util.TraceCodeVisitor;
 
 /**
  * @author Eric Bruneton
  */
 
-public class Analysis implements Opcodes {
-
+public class Analysis implements Constants {
+  
   public static void main (String[] args) throws Exception {
     ClassReader cr = new ClassReader("Analysis");
-    ClassNode cn = new ClassNode();
-    cr.accept(cn, true);
-
-    List methods = cn.methods;
+    TreeClassAdapter ca = new TreeClassAdapter(null);
+    cr.accept(ca, true);
+    
+    List methods = ca.classNode.methods;
     for (int i = 0; i < methods.size(); ++i) {
       MethodNode method = (MethodNode)methods.get(i);
       if (method.instructions.size() > 0) {
-        if (!analyze(cn, method)) {
+        if (!analyze(ca.classNode, method)) {
           Analyzer a = new Analyzer(new BasicVerifier());
           try {
-            a.analyze(cn.name, method);
+            a.analyze(ca.classNode, method);
           } catch (Exception ignored) {
           }
           final Frame[] frames = a.getFrames();
-
-          TraceMethodVisitor mv = new TraceMethodVisitor() {
-            public void visitMaxs (final int maxStack, final int maxLocals) {
+          
+          TraceCodeVisitor cv = new TraceCodeVisitor(null) {
+            public void visitMaxs (int maxStack, int maxLocals) {
               for (int i = 0; i < text.size(); ++i) {
                 String s = frames[i] == null ? "null" : frames[i].toString();
                 while (s.length() < Math.max(20, maxStack+maxLocals+1)) {
                   s += " ";
                 }
                 System.err.print(
-                  Integer.toString(i + 1000).substring(1) + " " + s + " : "
+                  Integer.toString(i + 1000).substring(1) + " " + s + " : " 
                   + text.get(i));
               }
               System.err.println();
@@ -86,40 +88,46 @@ public class Analysis implements Opcodes {
           };
           for (int j = 0; j < method.instructions.size(); ++j) {
             Object insn = method.instructions.get(j);
-            ((AbstractInsnNode)insn).accept(mv);
+            if (insn instanceof AbstractInsnNode) {
+              ((AbstractInsnNode)insn).accept(cv);
+            } else {
+              cv.visitLabel((Label)insn);
+            }
           }
-          mv.visitMaxs(0, 0);
+          cv.visitMaxs(0, 0);
         }
       }
     }
   }
-
+  
   /*
-   * Detects unused xSTORE instructions, i.e. xSTORE instructions without at
+   * Detects unused xSTORE instructions, i.e. xSTORE instructions without at 
    * least one xLOAD corresponding instruction in their successor instructions
    * (in the control flow graph).
    */
-
+  
   public static boolean analyze (ClassNode c, MethodNode m) throws Exception {
     Analyzer a = new Analyzer(new DataflowInterpreter());
-    Frame[] frames = a.analyze(c.name, m);
+    Frame[] frames = a.analyze(c, m);
 
-    // for each xLOAD instruction, we find the xSTORE instructions that can
+    // for each xLOAD instruction, we find the xSTORE instructions that can 
     // produce the value loaded by this instruction, and we put them in 'stores'
     Set stores = new HashSet();
     for (int i = 0; i < m.instructions.size(); ++i) {
       Object insn = m.instructions.get(i);
-      int opcode = ((AbstractInsnNode)insn).getOpcode();
-      if ((opcode >= ILOAD && opcode <= ALOAD) || opcode == IINC) {
-        int var = (opcode == IINC ? ((IincInsnNode)insn).var : ((VarInsnNode)insn).var);
-        Frame f = frames[i];
-        if (f != null) {
-          Set s = ((DataflowValue)f.getLocal(var)).insns;
-          Iterator j = s.iterator();
-          while (j.hasNext()) {
-            insn = j.next();
-            if (insn instanceof VarInsnNode) {
-              stores.add(insn);
+      if (insn instanceof AbstractInsnNode) {
+        int opcode = ((AbstractInsnNode)insn).getOpcode();
+        if ((opcode >= ILOAD && opcode <= ALOAD) || opcode == IINC) {
+          int var = (opcode == IINC ? ((IincInsnNode)insn).var : ((VarInsnNode)insn).var);
+          Frame f = frames[i];
+          if (f != null) {
+            Set s = ((DataflowValue)f.getLocal(var)).insns;
+            Iterator j = s.iterator();
+            while (j.hasNext()) {
+              insn = j.next();
+              if (insn instanceof VarInsnNode) {
+                stores.add(insn);
+              }
             }
           }
         }
@@ -136,7 +144,7 @@ public class Analysis implements Opcodes {
           if (!stores.contains(insn)) {
             ok = false;
             System.err.println(
-              "method " + m.name + ", instruction " + i +
+              "method " + m.name + ", instruction " + i + 
               ": useless store instruction");
           }
         }
@@ -144,14 +152,14 @@ public class Analysis implements Opcodes {
     }
     return ok;
   }
-
+  
   /*
    * Test for the above method, with three useless xSTORE instructions.
    */
-
+  
   public int test (int i, int j) {
     i = i + 1; // ok, because i can be read after this point
-
+    
     if (j == 0) {
       j = 1; // useless
     } else {
@@ -166,7 +174,7 @@ public class Analysis implements Opcodes {
         j = j + 1; // useless
       }
     }
-
+    
     return 0;
   }
 }

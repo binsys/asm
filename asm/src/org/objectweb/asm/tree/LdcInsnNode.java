@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,13 +30,12 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.CodeVisitor;
+import org.objectweb.asm.Constants;
 
 /**
  * A node that represents an LDC instruction.
- *
+ * 
  * @author Eric Bruneton
  */
 
@@ -44,30 +43,28 @@ public class LdcInsnNode extends AbstractInsnNode {
 
   /**
    * The constant to be loaded on the stack. This parameter must be a non null
-   * {@link Integer}, a {@link Float}, a {@link Long}, a {@link Double}, a
-   * {@link String} or a {@link Type}.
+   * {@link java.lang.Integer Integer}, a {@link java.lang.Float Float}, a
+   * {@link java.lang.Long Long}, a {@link java.lang.Double Double} a {@link
+   * String String} or a {@link org.objectweb.asm.Type Type}.
    */
 
   public Object cst;
 
   /**
-   * Constructs a new {@link LdcInsnNode}.
+   * Constructs a new {@link LdcInsnNode LdcInsnNode} object.
    *
    * @param cst the constant to be loaded on the stack. This parameter must be
-   *      a non null {@link Integer}, a {@link Float}, a {@link Long}, a
-   *      {@link Double} or a {@link String}.
+   *      a non null {@link java.lang.Integer Integer}, a {@link java.lang.Float
+   *      Float}, a {@link java.lang.Long Long}, a {@link java.lang.Double
+   *      Double} or a {@link String String}.
    */
 
   public LdcInsnNode (final Object cst) {
-    super(Opcodes.LDC);
+    super(Constants.LDC);
     this.cst = cst;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitLdcInsn(cst);
-  }
-
-  public int getType () {
-    return LDC_INSN;
+  public void accept (final CodeVisitor cv) {
+    cv.visitLdcInsn(cst);
   }
 }

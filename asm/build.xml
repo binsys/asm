@@ -1,6 +1,6 @@
 <!--
  ! ASM: a very small and fast Java bytecode manipulation framework
- ! Copyright (c) 2000-2004 INRIA, France Telecom
+ ! Copyright (c) 2000,2002,2003 INRIA, France Telecom
  ! All rights reserved.
  !
  ! Redistribution and use in source and binary forms, with or without
@@ -34,7 +34,6 @@
   <!-- ======== PROPERTY DEFINITION ======= -->
   <!-- ==================================== -->
 
-  <property file="${user.home}/asm-build.properties"/>
   <property file="build.config"/>
   <property file="build.properties"/>
 
@@ -74,10 +73,6 @@
         <isset property="objectweb.ant.tasks.path"/>
       </and>
     </condition>
-
-    <condition property="product.shrink">
-      <not><isset property="product.noshrink"/></not>
-    </condition>
   </target>
 
   <!-- ================================== -->
@@ -111,37 +106,15 @@
   <!-- ==========    COMPILE    ========== -->
   <!-- =================================== -->
 
-  <target name="compile-debug" depends="init">
-    <mkdir dir="${out.build}/tmp"/>
-    <javac destdir="${out.build}/tmp" debug="on" source="1.3" target="1.2">
-      <classpath>
-        <pathelement location="${out.build}/tmp"/>
-      </classpath> 
+  <target name="compile" depends="init">
+    <mkdir dir="${out.build}"/>
+    <javac destdir="${out.build}" optimize="on">
+      <classpath refid="classpath"/>
       <src path="${src}"/>
       <include name="**/*.java"/>
     </javac>
   </target>
 
-  <target name="shrink" depends="compile-debug" if="product.shrink">
-    <echo message="Shrinking"/>
-    <java classname="org.objectweb.asm.optimizer.Shrinker">
-      <classpath>
-        <pathelement location="${out.build}/tmp"/>
-      </classpath> 
-      <arg value="${src}/org/objectweb/asm/optimizer/shrink.properties"/>
-      <arg value="${out.build}/tmp"/> 
-      <arg value="${out.build}"/> 
-    </java>
-  </target>
-
-  <target name="move.tmp" depends="compile-debug" if="product.noshrink">
-    <move todir="${out.build}" >
-      <fileset dir="${out.build}/tmp" />
-    </move>
-  </target>    
-    
-  <target name="compile" depends="compile-debug,shrink,move.tmp"/>
-    
   <!-- =================================== -->
   <!-- ==========      TEST     ========== -->
   <!-- =================================== -->
@@ -161,22 +134,20 @@
     <mkdir dir="${out.dist.lib}"/>
   </target>
 
-  <target name="jar" depends="dist.init,compile,shrink">
-    <tstamp>
-      <format property="product.build.time" pattern="yyyyMMdd.HHmmss"/>
-    </tstamp>
-    <condition property="product.artifact" value="${product.version}">
-      <not><isset property="product.snapshot"/></not>
-    </condition>
-    <condition property="product.artifact" value="${product.build.time}">
-      <isset property="product.snapshot"/>
-    </condition>
-
+  <target name="jar" depends="dist.init,compile">
+    <!--
+    <mkdir dir="${out.tmp}"/>
+    <copy toDir="${out.tmp}">
+      <fileset dir="${archive}">
+        <include name="*.mf"/>
+      </fileset>
+      <filterset>
+        <filter token="@product.version@" value="${product.version}"/>
+      </filterset>
+    </copy>
+    <replace dir="${out.tmp}" token="@product.version@" value="${product.version}"/>
+    -->
     <multipleAnt dir="${archive}"/>
-    <java classname="org.objectweb.asm.optimizer.JarOptimizer">
-      <classpath refid="classpath"/>
-      <arg value="${out.dist.lib}"/> 
-    </java> 
   </target>
 
   <target name="jdoc" depends="init,dist.init">
@@ -258,12 +229,10 @@
         <exclude name="**/externals"/>
         <exclude name="**/lib/**"/>
         <exclude name="**/lib"/>
-        <exclude name="eclipse/**"/>
-        <exclude name="eclipse"/>
         <exclude name="web/**"/>
         <exclude name="web"/>
-        <exclude name="**/output/**"/>
-        <exclude name="**/output"/>
+        <exclude name="output/**"/>
+        <exclude name="output"/>
         <exclude name="CVSROOT/**"/>
         <exclude name="CVSROOT"/>
       </tarfileset>
@@ -272,7 +241,15 @@
       <zipfileset dir="${out.dist}" prefix="${product.name}-${product.version}"/>
     </zip>
   </target>
-  
+
+  <!-- =================================== -->
+  <!-- ==========      WEB      ========== -->
+  <!-- =================================== -->
+
+  <target name="web">
+    <ant dir="${web}"/>
+  </target>
+
   <!-- =================================== -->
   <!-- ==========     CLEAN     ========== -->
   <!-- =================================== -->

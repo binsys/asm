@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +34,9 @@ import org.objectweb.asm.Type;
 
 /**
  * An extended {@link BasicVerifier} that performs more precise verifications.
- * This verifier computes exact class types, instead of using a single
- * "object reference" type (as done in the {@link BasicVerifier}).
- *
+ * This verifier computes exact class types, instead of using a single 
+ * "object reference" type (as done in the {@link BasicVerifier}).  
+ * 
  * @author Eric Bruneton
  * @author Bing Ran
  */
@@ -59,15 +59,15 @@ public class SimpleVerifier extends BasicVerifier {
     }
     return v;
   }
-
+  
   protected boolean isArrayValue (final Value value) {
     Type t = ((BasicValue)value).getType();
     if (t != null) {
       return t.getDescriptor().equals("Lnull;") || t.getSort() == Type.ARRAY;
-    }
+    } 
     return false;
   }
-
+      
   protected Value getElementValue (final Value objectArrayValue)
     throws AnalyzerException
   {
@@ -81,35 +81,36 @@ public class SimpleVerifier extends BasicVerifier {
     }
     throw new AnalyzerException("Not an array type");
   }
-
+    
   protected boolean isSubTypeOf (final Value value, final Value expected) {
     Type expectedType = ((BasicValue)expected).getType();
     Type type = ((BasicValue)value).getType();
     if (expectedType == null) {
       return type == null;
-    }
-    switch (expectedType.getSort()) {
-      case Type.INT:
-      case Type.FLOAT:
-      case Type.LONG:
-      case Type.DOUBLE:
-        return type == expectedType;
-      case Type.ARRAY:
-      case Type.OBJECT:
-        if (expectedType.getDescriptor().equals("Lnull;")) {
-          return type.getSort() == Type.OBJECT || type.getSort() == Type.ARRAY;
-        }
-        Class expectedClass = getClass(expectedType);
-        if (type.getDescriptor().equals("Lnull;")) {
-          return !expectedClass.isPrimitive();
-        } else if (type.getSort() == Type.OBJECT || type.getSort() == Type.ARRAY) {
-          Class actualClass = getClass(type);
-          return expectedClass.isAssignableFrom(actualClass);
-        } else {
-          return false;
-        }
-      default:
-        throw new RuntimeException("Internal error");
+    } else {
+      switch (expectedType.getSort()) {
+        case Type.INT:
+        case Type.FLOAT:
+        case Type.LONG:
+        case Type.DOUBLE:
+          return type == expectedType;
+        case Type.ARRAY:
+        case Type.OBJECT:
+          if (expectedType.getDescriptor().equals("Lnull;")) {
+            return type.getSort() == Type.OBJECT || type.getSort() == Type.ARRAY;
+          }
+          Class expectedClass = getClass(expectedType);
+          if (type.getDescriptor().equals("Lnull;")) {
+            return !expectedClass.isPrimitive();
+          } else if (type.getSort() == Type.OBJECT || type.getSort() == Type.ARRAY) {
+            Class actualClass = getClass(type);
+            return expectedClass.isAssignableFrom(actualClass);
+          } else {
+            return false;
+          }
+        default:
+          throw new RuntimeException("Internal error");
+      }
     }
   }
 
@@ -139,8 +140,9 @@ public class SimpleVerifier extends BasicVerifier {
           do {
             if (c == null || c.isInterface()) {
               return BasicValue.REFERENCE_VALUE;
+            } else {
+              c = c.getSuperclass();
             }
-            c = c.getSuperclass();
             if (c.isAssignableFrom(d)) {
               return newValue(Type.getType(c));
             }
@@ -151,13 +153,14 @@ public class SimpleVerifier extends BasicVerifier {
     }
     return v;
   }
-
+  
   protected Class getClass (final Type t) {
     try {
       if (t.getSort() == Type.ARRAY) {
         return Class.forName(t.getDescriptor().replace('/', '.'));
+      } else {
+        return Class.forName(t.getClassName());
       }
-      return Class.forName(t.getClassName());
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e.toString());
     }

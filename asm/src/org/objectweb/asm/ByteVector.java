@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -210,58 +210,41 @@ public class ByteVector {
 
   public ByteVector putUTF8 (final String s) {
     int charLength = s.length();
-    if (length + 2 + charLength > data.length) {
-      enlarge(2 + charLength);
-    }
-    int len = length;
-    byte[] data = this.data;
-    // optimistic algorithm: instead of computing the byte length and then
-    // serializing the string (which requires two loops), we assume the byte 
-    // length is equal to char length (which is the most frequent case), and we
-    // start serializing the string right away. During the serialization, if we 
-    // find that this assumption is wrong, we continue with the general method.
-    data[len++] = (byte)(charLength >>> 8);
-    data[len++] = (byte)(charLength);
+    int byteLength = 0;
     for (int i = 0; i < charLength; ++i) {
       char c = s.charAt(i);
       if (c >= '\001' && c <= '\177') {
-        data[len++] = (byte)c;
+        byteLength++;
+      } else if (c > '\u07FF') {
+        byteLength += 3;
       } else {
-        int byteLength = i;
-        for (int j = i; j < charLength; ++j) {
-          c = s.charAt(j);
-          if (c >= '\001' && c <= '\177') {
-            byteLength++;
-          } else if (c > '\u07FF') {
-            byteLength += 3;
-          } else {
-            byteLength += 2;
-          }
-        }
-        data[length] = (byte)(byteLength >>> 8);
-        data[length + 1] = (byte)(byteLength);
-        if (length + 2 + byteLength > data.length) {
-          length = len;
-          enlarge(2 + byteLength);
-          data = this.data;
-        }
-        for (int j = i; j < charLength; ++j) {
-          c = s.charAt(j);
-          if (c >= '\001' && c <= '\177') {
-            data[len++] = (byte)c;
-          } else if (c > '\u07FF') {
-            data[len++] = (byte)(0xE0 | c >> 12 & 0xF);
-            data[len++] = (byte)(0x80 | c >> 6 & 0x3F);
-            data[len++] = (byte)(0x80 | c & 0x3F);
-          } else {
-            data[len++] = (byte)(0xC0 | c >> 6 & 0x1F);
-            data[len++] = (byte)(0x80 | c & 0x3F);
-          }
-        }
-        break;
+        byteLength += 2;
       }
     }
-    length = len;
+    if (byteLength > 65535) {
+      throw new IllegalArgumentException();
+    }
+    int length = this.length;
+    if (length + 2 + byteLength > data.length) {
+      enlarge(2 + byteLength);
+    }
+    byte[] data = this.data;
+    data[length++] = (byte)(byteLength >>> 8);
+    data[length++] = (byte)(byteLength);
+    for (int i = 0; i < charLength; ++i) {
+      char c = s.charAt(i);
+      if (c >= '\001' && c <= '\177') {
+        data[length++] = (byte)c;
+      } else if (c > '\u07FF') {
+        data[length++] = (byte)(0xE0 | c >> 12 & 0xF);
+        data[length++] = (byte)(0x80 | c >> 6 & 0x3F);
+        data[length++] = (byte)(0x80 | c & 0x3F);
+      } else {
+        data[length++] = (byte)(0xC0 | c >> 6 & 0x1F);
+        data[length++] = (byte)(0x80 | c & 0x3F);
+      }
+    }
+    this.length = length;
     return this;
   }
 

@@ -1,6 +1,6 @@
 /**
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,11 +42,11 @@ import org.objectweb.asm.Label;
 
 
 /**
- * Holds the state of the stack and local variables for a single execution 
- * branch.
+ * StackMapFrame is used by {@link StackMapAttribute} to hold state of the stack
+ * and local variables for a single execution branch.
  *
  * <i>Note that Long and Double types are represented by two entries in locals
- * and stack. Second entry should be always of type Top.</i>
+ * and stack. Second entry sohould be always of type Top.</i>
  *
  * @see <a href="http://www.jcp.org/en/jsr/detail?id=139">JSR 139 : Connected
  * Limited Device Configuration 1.1</a>

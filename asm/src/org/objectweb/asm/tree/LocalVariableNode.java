@@ -1,6 +1,6 @@
 /***
  * ASM: a very small and fast Java bytecode manipulation framework
- * Copyright (c) 2000-2004 INRIA, France Telecom
+ * Copyright (c) 2000,2002,2003 INRIA, France Telecom
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.CodeVisitor;
 import org.objectweb.asm.Label;
 
 /**
@@ -54,12 +54,6 @@ public class LocalVariableNode {
   public String desc;
 
   /**
-   * The signature of this local variable. May be <tt>null</tt>.
-   */
-  
-  public String signature;
-  
-  /**
    * The first instruction corresponding to the scope of this local variable
    * (inclusive).
    */
@@ -80,12 +74,10 @@ public class LocalVariableNode {
   public int index;
 
   /**
-   * Constructs a new {@link LocalVariableNode}.
+   * Constructs a new {@link LocalVariableNode LocalVariableNode} object.
    *
    * @param name the name of a local variable.
    * @param desc the type descriptor of this local variable.
-   * @param signature the signature of this local variable. 
-   *      May be <tt>null</tt>.
    * @param start the first instruction corresponding to the scope of this
    *      local variable (inclusive).
    * @param end the last instruction corresponding to the scope of this
@@ -96,26 +88,24 @@ public class LocalVariableNode {
   public LocalVariableNode (
     final String name,
     final String desc,
-    final String signature,
     final Label start,
     final Label end,
     final int index)
   {
     this.name = name;
     this.desc = desc;
-    this.signature = signature;
     this.start = start;
     this.end = end;
     this.index = index;
   }
 
   /**
-   * Makes the given visitor visit this local variable declaration.
+   * Makes the given code visitor visit this local variable declaration.
    *
-   * @param mv a method visitor.
+   * @param cv a code visitor.
    */
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitLocalVariable(name, desc, signature, start, end, index);
+  public void accept (final CodeVisitor cv) {
+    cv.visitLocalVariable(name, desc, start, end, index);
   }
 }
