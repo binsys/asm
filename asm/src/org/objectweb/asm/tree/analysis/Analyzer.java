@@ -33,13 +33,13 @@ package org.objectweb.asm.tree.analysis;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Constants;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LookupSwitchInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TableSwitchInsnNode;
@@ -52,7 +52,7 @@ import org.objectweb.asm.tree.VarInsnNode;
  * @author Eric Bruneton
  */
 
-public class Analyzer implements Opcodes {
+public class Analyzer implements Constants {
 
   private Interpreter interpreter;
 
@@ -86,7 +86,7 @@ public class Analyzer implements Opcodes {
   /**
    * Analyzes the given method.
    * 
-   * @param owner the internal name of the class to which the method belongs.
+   * @param c the class to which the method belongs.
    * @param m the method to be analyzed.
    * @return the symbolic state of the execution stack frame at each bytecode
    *     instruction of the method. The size of the returned array is equal to 
@@ -96,7 +96,7 @@ public class Analyzer implements Opcodes {
    * @throws AnalyzerException if a problem occurs during the analysis.
    */
   
-  public Frame[] analyze (final String owner, final MethodNode m) 
+  public Frame[] analyze (final ClassNode c, final MethodNode m) 
     throws AnalyzerException
   {
     n = m.instructions.size();
@@ -110,11 +110,7 @@ public class Analyzer implements Opcodes {
     
     // computes instruction indexes
     for (int i = 0; i < n; ++i) {
-      Object insn = m.instructions.get(i);
-      if (insn instanceof LabelNode) {
-        insn = ((LabelNode)insn).label;
-      }
-      indexes.put(insn, i);
+      indexes.put(m.instructions.get(i), i);
     }
 
     // computes exception handlers for each instruction
@@ -138,7 +134,7 @@ public class Analyzer implements Opcodes {
     Type[] args = Type.getArgumentTypes(m.desc);
     int local = 0;
     if ((m.access & ACC_STATIC) == 0) {
-      Type ctype = Type.getType("L" + owner + ";");
+      Type ctype = Type.getType("L" + c.name + ";");
       current.setLocal(local++, interpreter.newValue(ctype));
     }
     for (int i = 0; i < args.length; ++i) {
@@ -162,7 +158,7 @@ public class Analyzer implements Opcodes {
       try {
         Object o = m.instructions.get(insn);
         
-        if (o instanceof LabelNode) {
+        if (o instanceof Label) {
           merge(insn + 1, f, subroutine);
         } else {
           AbstractInsnNode insnNode = (AbstractInsnNode)o;
@@ -198,10 +194,11 @@ public class Analyzer implements Opcodes {
             if (subroutine == null) {
               throw new AnalyzerException(
                 "RET instruction outside of a sub routine");
-            }
-            for (int i = 0; i < subroutine.callers.size(); ++i) {
-              int caller = indexes.get(subroutine.callers.get(i));
-              merge(caller + 1, frames[caller], current, subroutine.access);
+            } else {
+              for (int i = 0; i < subroutine.callers.size(); ++i) {
+                int caller = indexes.get(subroutine.callers.get(i));
+                merge(caller + 1, frames[caller], current, subroutine.access);
+              }
             }
           } else if (insnOpcode != ATHROW && (insnOpcode < IRETURN || insnOpcode > RETURN)) {
             if (subroutine != null) {
@@ -334,34 +331,34 @@ public class Analyzer implements Opcodes {
   {
     if (insn > n - 1) {
       throw new AnalyzerException("Execution can fall off end of the code");
-    }
-    
-    Frame oldFrame = frames[insn];
-    Subroutine oldSubroutine = subroutines[insn];
-    boolean changes = false;
-
-    if (oldFrame == null) {
-      frames[insn] = newFrame(frame);
-      changes = true;
     } else {
-      changes |= oldFrame.merge(frame, interpreter);
-    }
+      Frame oldFrame = frames[insn];
+      Subroutine oldSubroutine = subroutines[insn];
+      boolean changes = false;
 
-    newControlFlowEdge(frame, oldFrame);
-    
-    if (oldSubroutine == null) {
-      if (subroutine != null) {
-        subroutines[insn] = subroutine.copy();
+      if (oldFrame == null) {
+        frames[insn] = newFrame(frame);
         changes = true;
+      } else {
+        changes |= oldFrame.merge(frame, interpreter);
       }
-    } else {
-      if (subroutine != null) {
-        changes |= oldSubroutine.merge(subroutine);
+
+      newControlFlowEdge(frame, oldFrame);
+      
+      if (oldSubroutine == null) {
+        if (subroutine != null) {
+          subroutines[insn] = subroutine.copy();
+          changes = true;
+        }
+      } else {
+        if (subroutine != null) {
+          changes |= oldSubroutine.merge(subroutine);
+        }
       }
-    }
-    if (changes && !queued[insn]) {
-      queued[insn] = true;
-      queue[top++] = insn;
+      if (changes && !queued[insn]) {
+        queued[insn] = true;
+        queue[top++] = insn;
+      }
     }
   }
 
@@ -373,25 +370,25 @@ public class Analyzer implements Opcodes {
   {
     if (insn > n - 1) {
       throw new AnalyzerException("Execution can fall off end of the code");
-    }
-    
-    Frame oldFrame = frames[insn];
-    boolean changes = false;
+    } else {
+      Frame oldFrame = frames[insn];
+      boolean changes = false;
 
-    afterRET.merge(beforeJSR, access);
-    
-    if (oldFrame == null) {
-      frames[insn] = newFrame(afterRET);
-      changes = true;
-    } else {  
-      changes |= oldFrame.merge(afterRET, access);
-    }
-    
-    newControlFlowEdge(afterRET, oldFrame);
+      afterRET.merge(beforeJSR, access);
+      
+      if (oldFrame == null) {
+        frames[insn] = newFrame(afterRET);
+        changes = true;
+      } else {  
+        changes |= oldFrame.merge(afterRET, access);
+      }
+      
+      newControlFlowEdge(afterRET, oldFrame);
 
-    if (changes && !queued[insn]) {
-      queued[insn] = true;
-      queue[top++] = insn;
+      if (changes && !queued[insn]) {
+        queued[insn] = true;
+        queue[top++] = insn;
+      }
     }
   }
 

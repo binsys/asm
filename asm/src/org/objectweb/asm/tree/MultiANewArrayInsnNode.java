@@ -30,9 +30,8 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.Constants;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a MULTIANEWARRAY instruction.
@@ -43,7 +42,7 @@ import org.objectweb.asm.Type;
 public class MultiANewArrayInsnNode extends AbstractInsnNode {
 
   /**
-   * An array type descriptor (see {@link Type}).
+   * An array type descriptor (see {@link org.objectweb.asm.Type Type}).
    */
 
   public String desc;
@@ -55,19 +54,21 @@ public class MultiANewArrayInsnNode extends AbstractInsnNode {
   public int dims;
 
   /**
-   * Constructs a new {@link MultiANewArrayInsnNode}.
+   * Constructs a new {@link MultiANewArrayInsnNode MultiANewArrayInsnNode}
+   * object.
    *
-   * @param desc an array type descriptor (see {@link Type}).
+   * @param desc an array type descriptor (see {@link org.objectweb.asm.Type
+   *      Type}).
    * @param dims number of dimensions of the array to allocate.
    */
 
   public MultiANewArrayInsnNode (final String desc, final int dims) {
-    super(Opcodes.MULTIANEWARRAY, MULTIANEWARRAY_INSN);
+    super(Constants.MULTIANEWARRAY);
     this.desc = desc;
     this.dims = dims;
   }
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitMultiANewArrayInsn(desc, dims);
+  public void accept (final CodeVisitor cv) {
+    cv.visitMultiANewArrayInsn(desc, dims);
   }
 }

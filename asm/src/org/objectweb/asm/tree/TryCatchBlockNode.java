@@ -31,7 +31,7 @@
 package org.objectweb.asm.tree;
 
 import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a try catch block.
@@ -67,7 +67,7 @@ public class TryCatchBlockNode {
   public String type;
 
   /**
-   * Constructs a new {@link TryCatchBlockNode}.
+   * Constructs a new {@link TryCatchBlockNode TryCatchBlockNode} object.
    *
    * @param start beginning of the exception handler's scope (inclusive).
    * @param end end of the exception handler's scope (exclusive).
@@ -89,12 +89,12 @@ public class TryCatchBlockNode {
   }
 
   /**
-   * Makes the given visitor visit this try catch block.
+   * Makes the given code visitor visit this try catch block.
    *
-   * @param mv a method visitor.
+   * @param cv a code visitor.
    */
 
-  public void accept (final MethodVisitor mv) {
-    mv.visitTryCatchBlock(start, end, handler, type);
+  public void accept (final CodeVisitor cv) {
+    cv.visitTryCatchBlock(start, end, handler, type);
   }
 }

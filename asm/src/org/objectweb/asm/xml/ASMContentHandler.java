@@ -34,18 +34,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.objectweb.asm.AnnotationVisitor;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.CodeVisitor;
+import org.objectweb.asm.Constants;
 import org.objectweb.asm.Label;
-import org.objectweb.asm.Type;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
@@ -62,7 +57,7 @@ import org.xml.sax.helpers.DefaultHandler;
  * 
  * @author Eugene Kuleshov
  */
-public class ASMContentHandler extends DefaultHandler implements Opcodes {
+public class ASMContentHandler extends DefaultHandler implements Constants {
   /**
    * Stack of the intermediate processing contexts.
    */
@@ -86,51 +81,38 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * Current instance of the {@link ClassWriter ClassWriter} used to write class bytecode.
    */
   protected ClassWriter cw;
-
-  
+  /**
+   * Current instance of the {@link CodeVisitor CodeVisitor} used to write method bytecode
+   */
+  protected CodeVisitor mw;
   /**
    * Map of the active {@link Label Label} instances for current method.
    */
   protected Map labels;
   
-  
   private static final String BASE = "class";
-  
-  private final RuleSet RULES = new RuleSet(); 
-  {    
-      RULES.add( BASE, new ClassRule());
-      RULES.add( BASE+"/interfaces/interface", new InterfaceRule());
-      RULES.add( BASE+"/interfaces", new InterfacesRule());
-      RULES.add( BASE+"/outerclass", new OuterClassRule());
-      RULES.add( BASE+"/innerclass", new InnerClassRule());
-      RULES.add( BASE+"/source", new SourceRule());
-      RULES.add( BASE+"/field", new FieldRule());
+  private final Rule[] RULES = { 
+      new ClassRule( BASE), 
+      new InterfaceRule( BASE+"/interfaces/interface"),
+      new InterfacesRule( BASE+"/interfaces"),
+      new FieldRule( BASE+"/field"),
+      new MethodRule( BASE+"/method"),
+      new ExceptionRule( BASE+"/method/exceptions/exception"),
+      new ExceptionsRule( BASE+"/method/exceptions"),
+      new InnerClassRule( BASE+"/innerclass"),
+	  
+      new OpcodesRule( BASE+"/method/code/"),  // opcodes
       
-      RULES.add( BASE+"/method", new MethodRule());
-      RULES.add( BASE+"/method/exceptions/exception", new ExceptionRule());
-      RULES.add( BASE+"/method/exceptions", new ExceptionsRule());
+      new TableSwitchRule( BASE+"/method/code/TABLESWITCH"),
+      new TableSwitchLabelRule( BASE+"/method/code/TABLESWITCH/label"),
+      new LookupSwitchRule( BASE+"/method/code/LOOKUPSWITCH"),
+      new LookupSwitchLabelRule( BASE+"/method/code/LOOKUPSWITCH/label"),
 
-      RULES.add( BASE+"/method/annotationDefault", new AnnotationDefaultRule());
-
-      RULES.add( BASE+"/method/code/*", new OpcodesRule());  // opcodes
-      
-      RULES.add( BASE+"/method/code/TABLESWITCH", new TableSwitchRule());
-      RULES.add( BASE+"/method/code/TABLESWITCH/label", new TableSwitchLabelRule());
-      RULES.add( BASE+"/method/code/LOOKUPSWITCH", new LookupSwitchRule());
-      RULES.add( BASE+"/method/code/LOOKUPSWITCH/label", new LookupSwitchLabelRule());
-
-      RULES.add( BASE+"/method/code/Label", new LabelRule());
-      RULES.add( BASE+"/method/code/TryCatch", new TryCatchRule());
-      RULES.add( BASE+"/method/code/LineNumber", new LineNumberRule());
-      RULES.add( BASE+"/method/code/LocalVar", new LocalVarRule());
-      RULES.add( BASE+"/method/code/Max", new MaxRule());
-
-      RULES.add( "*/annotation", new AnnotationRule());
-      RULES.add( "*/parameterAnnotation", new AnnotationParameterRule());
-      RULES.add( "*/annotationValue", new AnnotationValueRule());
-      RULES.add( "*/annotationValueAnnotation", new AnnotationValueAnnotationRule());
-      RULES.add( "*/annotationValueEnum", new AnnotationValueEnumRule());
-      RULES.add( "*/annotationValueArray", new AnnotationValueArrayRule());
+      new LabelRule( BASE+"/method/code/Label"),
+      new TryCatchRule( BASE+"/method/code/TryCatch"),
+      new LineNumberRule( BASE+"/method/code/LineNumber"),
+      new LocalVarRule( BASE+"/method/code/LocalVar"),
+      new MaxRule( BASE+"/method/code/Max")
     };
   
   private static interface OpcodeGroup {
@@ -363,8 +345,11 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
     match = sb.toString();
 
     // Fire "begin" events for all relevant rules
-    Rule r = ( Rule) RULES.match( match);
-    if( r!=null) r.begin(name, list);
+    for( int i = 0; i < RULES.length; i++) {
+      if( RULES[ i].match( match, name)) {
+        RULES[ i].begin( name, list);
+      }
+    }
   }
 
   /**
@@ -389,8 +374,11 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
     }
 
     // Fire "end" events for all relevant rules in reverse order
-    Rule r = ( Rule) RULES.match( match);
-    if( r!=null) r.end(name);
+    for( int i = 0; i < RULES.length; i++) {
+      if( RULES[ i].match( match, name)) {
+        RULES[ i].end( name);
+      }
+    }
 
     // Recover the previous match expression
     int slash = match.lastIndexOf( '/');
@@ -456,53 +444,19 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
   }
 
 
-  public static final class RuleSet {
-    private Map rules = new HashMap();
-    private List lpatterns = new ArrayList();
-    private List rpatterns = new ArrayList();
-    
-    public void add( String path, Object rule) {
-      String pattern = path;
-      if( path.startsWith( "*/")) {
-        pattern = path.substring( 1);
-        lpatterns.add( pattern);
-      } else if( path.endsWith( "/*")) {
-        pattern = path.substring( 0, path.length()-1);
-        rpatterns.add( pattern);
-      }
-      rules.put(pattern, rule);
-    }
-
-    public Object match( String path) {
-      if( rules.containsKey(path)) {
-        return rules.get(path);
-      }
-      
-      int n = path.lastIndexOf( '/');
-      for( Iterator it = lpatterns.iterator(); it.hasNext();) {
-        String pattern = ( String) it.next();
-        if( path.substring( n).endsWith(pattern)) {
-          return rules.get(pattern);
-        }        
-      }
-
-      for( Iterator it = rpatterns.iterator(); it.hasNext();) {
-        String pattern = ( String) it.next();
-        if( path.startsWith(pattern)) {
-          return rules.get(pattern);
-        }        
-      }
-      
-      return null;
-    }
-    
-  }
-
-  
   /**
    * Rule 
    */
-  protected abstract class Rule {
+  private abstract class Rule {
+    protected String path;
+
+    public Rule( String path) {
+      this.path = path;
+    }
+
+    public final String getPath() {
+      return path;
+    }
 
     public void begin( String name, Attributes attrs) {
     }
@@ -510,63 +464,24 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
     public void end( String name) {
     }
 
+    public boolean match( String match, String element) {
+      return path.equals( match);
+    }
+
     protected final Object getValue( String desc, String val) {
       Object value = null;
       if( val!=null) {
         if( desc.equals( "Ljava/lang/String;")) {
           value =  decode( val);
-        } else if( "Ljava/lang/Integer;".equals( desc) ||
-            "I".equals( desc) || "S".equals( desc) || "B".equals( desc) || "C".equals( desc) || desc.equals( "Z")) {
+        } else if( desc.equals( "Ljava/lang/Integer;") || 
+            desc.equals( "Z") || desc.equals( "B") || desc.equals( "C") || desc.equals( "I") || desc.equals( "S")) {
           value = new Integer( val);
-        
-        } else if( "Ljava/lang/Short;".equals( desc)) {
-          value = new Short( val);
-        
-        } else if( "Ljava/lang/Byte;".equals( desc)) { 
-          value = new Byte( val);
-          
-        } else if( "Ljava/lang/Character;".equals( desc)) {
-          value = new Character( decode( val).charAt( 0));
-          
-        } else if( "Ljava/lang/Boolean;".equals( desc)) {
-          value = Boolean.valueOf( val);
-
-        /*        
-        } else if( "Ljava/lang/Integer;".equals( desc) || desc.equals( "I")) {
-          value = new Integer( val);
-        } else if( "Ljava/lang/Character;".equals( desc) || desc.equals( "C")) {
-          value = new Character( decode( val).charAt( 0));
-        } else if( "Ljava/lang/Short;".equals( desc) || desc.equals( "S")) {
-          value = Short.valueOf( val);
-        } else if( "Ljava/lang/Byte;".equals( desc) || desc.equals( "B")) {
-          value = Byte.valueOf( val);
-        */
-        } else if( "Ljava/lang/Long;".equals( desc) || desc.equals( "J")) {
+        } else if( desc.equals( "Ljava/lang/Long;") || desc.equals( "J")) {
           value = new Long( val);
-        } else if( "Ljava/lang/Float;".equals( desc) || desc.equals( "F")) {
+        } else if( desc.equals( "Ljava/lang/Float;") || desc.equals( "F")) {
           value = new Float( val);
-        } else if( "Ljava/lang/Double;".equals( desc) || desc.equals( "D")) {
+        } else if( desc.equals( "Ljava/lang/Double;") || desc.equals( "D")) {
           value = new Double( val);
-        } else if( Type.getDescriptor( Type.class).equals( desc)) {
-          value = Type.getType( val);
-        /*
-        } else if( "[I".equals( desc)) {
-          value = new int[ 0];  // TODO
-        } else if( "[C".equals( desc)) {
-          value = new char[ 0];  // TODO
-        } else if( "[Z".equals( desc)) {
-          value = new boolean[ 0];  // TODO
-        } else if( "[S".equals( desc)) {
-          value = new short[ 0];  // TODO
-        } else if( "[B".equals( desc)) {
-          value = new byte[ 0];  // TODO
-        } else if( "[J".equals( desc)) {
-          value = new long[ 0];  // TODO
-        } else if( "[F".equals( desc)) {
-          value = new float[ 0];  // TODO
-        } else if( "[D".equals( desc)) {
-          value = new double[ 0];  // TODO
-        */
         } else {
           throw new RuntimeException( "Invalid value:"+val+" desc:"+desc+" ctx:"+this);
         }
@@ -613,44 +528,42 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
       return lbl;
     }
     
-    // TODO verify move to stack
-    protected final MethodVisitor getCodeVisitor() {
-      return (MethodVisitor) peek();
+    public String toString() {
+      return path;
     }
-    /*
+
+    protected final CodeVisitor getCodeVisitor() {
       if( mw==null) {
         Map vals = ( Map) pop();
         int access = Integer.parseInt(( String) vals.get( "access"), 16);
         String name = ( String) vals.get( "name");
-        String signature = ( String) vals.get( "signature");
         String desc = ( String) vals.get( "desc");
-        mw = cw.visitMethod( access, name, desc, signature, null);
+        mw = cw.visitMethod( access, name, desc, null, null);
       }
       return mw;
     }
-    */
 
     protected final int getAccess( String s) {
       int access = 0;
-      if( s.indexOf( "public")!=-1) access |= Opcodes.ACC_PUBLIC;
-      if( s.indexOf( "private")!=-1) access |= Opcodes.ACC_PRIVATE;
-      if( s.indexOf( "protected")!=-1) access |= Opcodes.ACC_PROTECTED;
-      if( s.indexOf( "static")!=-1) access |= Opcodes.ACC_STATIC;
-      if( s.indexOf( "final")!=-1) access |= Opcodes.ACC_FINAL;
-      if( s.indexOf( "super")!=-1) access |= Opcodes.ACC_SUPER;
-      if( s.indexOf( "synchronized")!=-1) access |= Opcodes.ACC_SYNCHRONIZED;
-      if( s.indexOf( "volatile")!=-1) access |= Opcodes.ACC_VOLATILE;
-      if( s.indexOf( "bridge")!=-1) access |= Opcodes.ACC_BRIDGE;
-      if( s.indexOf( "varargs")!=-1) access |= Opcodes.ACC_VARARGS;
-      if( s.indexOf( "transient")!=-1) access |= Opcodes.ACC_TRANSIENT;
-      if( s.indexOf( "native")!=-1) access |= Opcodes.ACC_NATIVE;
-      if( s.indexOf( "interface")!=-1) access |= Opcodes.ACC_INTERFACE;
-      if( s.indexOf( "abstract")!=-1) access |= Opcodes.ACC_ABSTRACT;
-      if( s.indexOf( "strict")!=-1) access |= Opcodes.ACC_STRICT;
-      if( s.indexOf( "synthetic")!=-1) access |= Opcodes.ACC_SYNTHETIC;
-      if( s.indexOf( "annotation")!=-1) access |= Opcodes.ACC_ANNOTATION;
-      if( s.indexOf( "enum")!=-1) access |= Opcodes.ACC_ENUM;
-      if( s.indexOf( "deprecated")!=-1) access |= Opcodes.ACC_DEPRECATED;
+      if( s.indexOf( "public")!=-1) access |= Constants.ACC_PUBLIC;
+      if( s.indexOf( "private")!=-1) access |= Constants.ACC_PRIVATE;
+      if( s.indexOf( "protected")!=-1) access |= Constants.ACC_PROTECTED;
+      if( s.indexOf( "static")!=-1) access |= Constants.ACC_STATIC;
+      if( s.indexOf( "final")!=-1) access |= Constants.ACC_FINAL;
+      if( s.indexOf( "super")!=-1) access |= Constants.ACC_SUPER;
+      if( s.indexOf( "synchronized")!=-1) access |= Constants.ACC_SYNCHRONIZED;
+      if( s.indexOf( "volatile")!=-1) access |= Constants.ACC_VOLATILE;
+      if( s.indexOf( "bridge")!=-1) access |= Constants.ACC_BRIDGE;
+      if( s.indexOf( "varargs")!=-1) access |= Constants.ACC_VARARGS;
+      if( s.indexOf( "transient")!=-1) access |= Constants.ACC_TRANSIENT;
+      if( s.indexOf( "native")!=-1) access |= Constants.ACC_NATIVE;
+      if( s.indexOf( "interface")!=-1) access |= Constants.ACC_INTERFACE;
+      if( s.indexOf( "abstract")!=-1) access |= Constants.ACC_ABSTRACT;
+      if( s.indexOf( "strict")!=-1) access |= Constants.ACC_STRICT;
+      if( s.indexOf( "synthetic")!=-1) access |= Constants.ACC_SYNTHETIC;
+      if( s.indexOf( "annotation")!=-1) access |= Constants.ACC_ANNOTATION;
+      if( s.indexOf( "enum")!=-1) access |= Constants.ACC_ENUM;
+      if( s.indexOf( "deprecated")!=-1) access |= Constants.ACC_DEPRECATED;
       return access;
     }
     
@@ -660,6 +573,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * ClassRule
    */
   private final class ClassRule extends Rule {
+
+    public ClassRule( String path) {
+      super( path);
+    }
     
     public final void begin( String name, Attributes attrs) {
       int major = Integer.parseInt( attrs.getValue( "major"));
@@ -671,22 +588,11 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
       vals.put( "name", attrs.getValue( "name"));
       vals.put( "parent", attrs.getValue( "parent"));
       vals.put( "source", attrs.getValue( "source"));
-      vals.put( "signature", attrs.getValue( "signature"));
       vals.put( "interfaces", new ArrayList());
       push( vals);  
       // values will be extracted in InterfacesRule.end();
     }
 
-  }
-  
-  private final class SourceRule extends Rule {
-    
-    public void begin( String name, Attributes attrs) {
-      String file = attrs.getValue( "file");
-      String debug = attrs.getValue( "debug");
-      cw.visitSource(file, debug);
-    }
-    
   }
 
 
@@ -694,6 +600,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * InterfaceRule 
    */
   private final class InterfaceRule extends Rule {
+
+    public InterfaceRule( String path) {
+      super( path);
+    }
 
     public final void begin( String name, Attributes attrs) {
       (( List) (( Map) peek()).get( "interfaces")).add( attrs.getValue( "name"));
@@ -707,47 +617,19 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class InterfacesRule extends Rule {
 
+    public InterfacesRule( String path) {
+      super( path);
+    }
+
     public final void end( String element) {
       Map vals = ( Map) pop();
       int version = (( Integer)vals.get( "version")).intValue();
       int access = getAccess(( String) vals.get( "access"));
       String name = ( String) vals.get( "name");
-      String signature = ( String) vals.get( "signature");
       String parent = ( String) vals.get( "parent");
+      String source = ( String) vals.get( "source");
       String[] interfaces = ( String[])(( List) vals.get( "interfaces")).toArray( new String[ 0]);
-      cw.visit( version, access, name, signature, parent, interfaces);
-      push(cw);
-    }
-    
-  }
-
-  
-  /**
-   * OuterClassRule
-   */
-  private final class OuterClassRule extends Rule {
-
-    public final void begin( String element, Attributes attrs) {
-      String owner = attrs.getValue( "owner");
-      String name = attrs.getValue( "name");
-      String desc = attrs.getValue( "desc");
-      cw.visitOuterClass( owner, name, desc);
-    }
-    
-  }
-
-  
-  /**
-   * InnerClassRule
-   */
-  private final class InnerClassRule extends Rule {
-
-    public final void begin( String element, Attributes attrs) {
-      int access = getAccess( attrs.getValue( "access"));
-      String name = attrs.getValue( "name");
-      String outerName = attrs.getValue( "outerName");
-      String innerName = attrs.getValue( "innerName");
-      cw.visitInnerClass( name, outerName, innerName, access);
+      cw.visit( version, access, name, parent, interfaces, source);
     }
     
   }
@@ -758,17 +640,16 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class FieldRule extends Rule {
 
+    public FieldRule( String path) {
+      super( path);
+    }
+
     public final void begin( String element, Attributes attrs) {
       int access = getAccess( attrs.getValue( "access"));
       String name = attrs.getValue( "name");
-      String signature = attrs.getValue( "signature");
       String desc = attrs.getValue( "desc");
       Object value = getValue( desc, attrs.getValue( "value"));
-      push( cw.visitField( access, name, desc, signature, value));
-    }
-    
-    public void end( String name) {
-      (( FieldVisitor) pop()).visitEnd();
+      cw.visitField( access, name, desc, value, null);
     }
 
   }
@@ -779,20 +660,48 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class MethodRule extends Rule {
 
+    public MethodRule( String path) {
+      super( path);
+    }
+    
     public final void begin( String name, Attributes attrs) {
       labels = new HashMap();
       Map vals = new HashMap();
       vals.put( "access", attrs.getValue( "access"));
       vals.put( "name", attrs.getValue( "name"));
       vals.put( "desc", attrs.getValue( "desc"));
-      vals.put( "signature", attrs.getValue( "signature"));
       vals.put( "exceptions", new ArrayList());
       push( vals);  
       // values will be extracted in ExceptionsRule.end();
     }
     
     public final void end( String name) {
-      (( MethodVisitor) pop()).visitEnd();
+      mw = null;
+      labels = null;
+    }
+    
+  }
+
+  
+  /**
+   * MethodRule
+   */
+  private final class InnerClassRule extends Rule {
+
+    public InnerClassRule( String path) {
+      super( path);
+    }
+    
+    public final void begin( String element, Attributes attrs) {
+      int access = getAccess( attrs.getValue( "access"));
+      String name = attrs.getValue( "name");
+      String outerName = attrs.getValue( "outerName");
+      String innerName = attrs.getValue( "innerName");
+      cw.visitInnerClass( name, outerName, innerName, access);
+    }
+    
+    public final void end( String name) {
+      mw = null;
       labels = null;
     }
     
@@ -803,6 +712,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * ExceptionRule 
    */
   private final class ExceptionRule extends Rule {
+
+    public ExceptionRule( String path) {
+      super( path);
+    }
 
     public final void begin( String name, Attributes attrs) {
       (( List) (( Map) peek()).get( "exceptions")).add( attrs.getValue( "name"));
@@ -816,24 +729,31 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class ExceptionsRule extends Rule {
 
+    public ExceptionsRule( String path) {
+      super( path);
+    }
+
     public final void end( String element) {
       Map vals = ( Map) pop();
       int access = getAccess(( String) vals.get( "access"));
       String name = ( String) vals.get( "name");
       String desc = ( String) vals.get( "desc");
-      String signature = ( String) vals.get( "signature");
       String[] exceptions = ( String[])(( List) vals.get( "exceptions")).toArray( new String[ 0]);
       
-      push( cw.visitMethod( access, name, desc, signature, exceptions));
+      mw = cw.visitMethod( access, name, desc, exceptions, null);
     }
     
   }
 
-
+  
   /**
    * TableSwitchRule
    */
   private class TableSwitchRule extends Rule {
+
+    public TableSwitchRule( String path) {
+      super( path);
+    }
 
     public final void begin( String name, Attributes attrs) {
       Map vals = new HashMap();
@@ -861,6 +781,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class TableSwitchLabelRule extends Rule {
 
+    public TableSwitchLabelRule( String path) {
+      super( path);
+    }
+  
     public final void begin( String name, Attributes attrs) {
       (( List) (( Map) peek()).get( "labels")).add( getLabel( attrs.getValue( "name")));
     }
@@ -872,6 +796,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * LookupSwitchRule
    */
   private final class LookupSwitchRule extends Rule {
+
+    public LookupSwitchRule( String path) {
+      super( path);
+    }
 
     public final void begin( String name, Attributes attrs) {
       Map vals = new HashMap();
@@ -901,6 +829,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class LookupSwitchLabelRule extends Rule {
 
+    public LookupSwitchLabelRule( String path) {
+      super( path);
+    }
+  
     public final void begin( String name, Attributes attrs) {
       Map vals = ( Map) peek();
       (( List) vals.get( "labels")).add( getLabel( attrs.getValue( "name")));
@@ -915,6 +847,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class LabelRule extends Rule {
 
+    public LabelRule( String path) {
+      super( path);
+    }
+
     public final void begin( String name, Attributes attrs) {
       getCodeVisitor().visitLabel( getLabel( attrs.getValue( "name")));
     }
@@ -926,6 +862,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    * TryCatchRule
    */
   private final class TryCatchRule extends Rule {
+
+    public TryCatchRule( String path) {
+      super( path);
+    }
 
     public final void begin( String name, Attributes attrs) {
       Label start = getLabel( attrs.getValue( "start"));
@@ -943,6 +883,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class LineNumberRule extends Rule {
 
+    public LineNumberRule( String path) {
+      super( path);
+    }
+
     public final void begin( String name, Attributes attrs) {
       int line = Integer.parseInt( attrs.getValue( "line"));
       Label start = getLabel( attrs.getValue( "start"));
@@ -957,14 +901,17 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class LocalVarRule extends Rule {
 
+    public LocalVarRule( String path) {
+      super( path);
+    }
+
     public final void begin( String element, Attributes attrs) {
       String name = attrs.getValue( "name");
       String desc = attrs.getValue( "desc");
-      String signature = attrs.getValue( "signature");
       Label start = getLabel( attrs.getValue( "start"));
       Label end = getLabel( attrs.getValue( "end"));
       int var = Integer.parseInt( attrs.getValue( "var"));
-      getCodeVisitor().visitLocalVariable( name, desc, signature, start, end, var);
+      getCodeVisitor().visitLocalVariable( name, desc, start, end, var);
     }
 
   }
@@ -975,9 +922,13 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class OpcodesRule extends Rule {
 
-    // public boolean match( String match, String element) {
-    //   return match.startsWith( path) && OPCODES.containsKey( element);
-    // }
+    public OpcodesRule( String path) {
+      super( path);
+    }
+
+    public boolean match( String match, String element) {
+      return match.startsWith( path) && OPCODES.containsKey( element);
+    }
     
     public final void begin( String element, Attributes attrs) {
       Opcode o = (( Opcode) OPCODES.get( element));
@@ -1037,6 +988,10 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
    */
   private final class MaxRule extends Rule {
 
+    public MaxRule( String path) {
+      super( path);
+    }
+
     public final void begin( String element, Attributes attrs) {
       int maxStack = Integer.parseInt( attrs.getValue( "maxStack"));
       int maxLocals = Integer.parseInt( attrs.getValue( "maxLocals"));
@@ -1045,113 +1000,7 @@ public class ASMContentHandler extends DefaultHandler implements Opcodes {
 
   }
 
-  
-  private final class AnnotationRule extends Rule {
-    
-    public void begin( String name, Attributes attrs) {
-      String desc = attrs.getValue( "desc");
-      boolean visible = Boolean.valueOf( attrs.getValue( "visible")).booleanValue();
 
-      Object v = peek();
-      if( v instanceof ClassVisitor) {
-        push(((ClassVisitor) v).visitAnnotation(desc, visible));
-      } else if( v instanceof FieldVisitor) {
-        push(((FieldVisitor) v).visitAnnotation(desc, visible));
-      } else if( v instanceof MethodVisitor) {
-        push(((MethodVisitor) v).visitAnnotation(desc, visible));
-      }
-    }
-    
-    public void end( String name) {
-      ((AnnotationVisitor) pop()).visitEnd();
-    }
-    
-  }
-  
-  
-  private final class AnnotationParameterRule extends Rule {
-    
-    public void begin( String name, Attributes attrs) {
-      int parameter = Integer.parseInt( attrs.getValue( "parameter"));
-      String desc = attrs.getValue( "desc");
-      boolean visible = Boolean.valueOf( attrs.getValue( "visible")).booleanValue();
-
-      push(((MethodVisitor) peek()).visitParameterAnnotation(parameter, desc, visible));
-    }
-    
-    public void end( String name) {
-      ((AnnotationVisitor) pop()).visitEnd();
-    }
-    
-  }
-
-  
-  private final class AnnotationValueRule extends Rule {
-    
-    public void begin( String nm, Attributes attrs) {
-      String name = attrs.getValue( "name");
-      String desc = attrs.getValue( "desc");
-      String value = attrs.getValue( "value");
-      ((AnnotationVisitor) peek()).visit(name, getValue( desc, value));
-    }
-
-  }
-  
-  
-  private final class AnnotationValueEnumRule extends Rule {
-
-    public void begin( String nm, Attributes attrs) {
-      String name = attrs.getValue( "name");
-      String desc = attrs.getValue( "desc");
-      String value = attrs.getValue( "value");
-      ((AnnotationVisitor) peek()).visitEnum(name, desc, value);
-    }
-
-  }
-  
-  
-  private final class AnnotationValueAnnotationRule extends Rule {
-
-    public void begin( String nm, Attributes attrs) {
-      String name = attrs.getValue( "name");
-      String desc = attrs.getValue( "desc");
-      push(((AnnotationVisitor) peek()).visitAnnotation(name, desc));
-    }
-
-    public void end( String name) {
-      ((AnnotationVisitor)pop()).visitEnd();
-    }
-    
-  }
-  
-  
-  private final class AnnotationValueArrayRule extends Rule {
-
-    public void begin( String nm, Attributes attrs) {
-      String name = attrs.getValue( "name");
-      push(((AnnotationVisitor) peek()).visitArray(name));
-    }
-
-    public void end( String name) {
-      ((AnnotationVisitor)pop()).visitEnd();
-    }
-    
-  }
-
-  
-  private final class AnnotationDefaultRule extends Rule {
-  
-    public void begin( String nm, Attributes attrs) {
-      push(((MethodVisitor) peek()).visitAnnotationDefault());
-    }
-
-    public void end( String name) {
-      ((AnnotationVisitor)pop()).visitEnd();
-    }
-  
-  }
-
-  
   /**
    * Opcode
    */

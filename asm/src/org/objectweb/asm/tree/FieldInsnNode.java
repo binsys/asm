@@ -30,8 +30,7 @@
 
 package org.objectweb.asm.tree;
 
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Type;
+import org.objectweb.asm.CodeVisitor;
 
 /**
  * A node that represents a field instruction. A field instruction is an
@@ -43,8 +42,8 @@ import org.objectweb.asm.Type;
 public class FieldInsnNode extends AbstractInsnNode {
 
   /**
-   * The internal name of the field's owner class (see 
-   * {@link Type#getInternalName() getInternalName}).
+   * The internal name of the field's owner class (see {@link
+   * org.objectweb.asm.Type#getInternalName() getInternalName}).
    */
 
   public String owner;
@@ -56,20 +55,21 @@ public class FieldInsnNode extends AbstractInsnNode {
   public String name;
 
   /**
-   * The field's descriptor (see {@link Type}).
+   * The field's descriptor (see {@link org.objectweb.asm.Type Type}).
    */
 
   public String desc;
 
   /**
-   * Constructs a new {@link FieldInsnNode}.
+   * Constructs a new {@link FieldInsnNode FieldInsnNode} object.
    *
    * @param opcode the opcode of the type instruction to be constructed. This
    *      opcode must be GETSTATIC, PUTSTATIC, GETFIELD or PUTFIELD.
-   * @param owner the internal name of the field's owner class (see 
-   *     {@link Type#getInternalName() getInternalName}).
+   * @param owner the internal name of the field's owner class (see {@link
+   *      org.objectweb.asm.Type#getInternalName() getInternalName}).
    * @param name the field's name.
-   * @param desc the field's descriptor (see {@link Type}).
+   * @param desc the field's descriptor (see {@link org.objectweb.asm.Type
+   *      Type}).
    */
 
   public FieldInsnNode (
@@ -78,7 +78,7 @@ public class FieldInsnNode extends AbstractInsnNode {
     final String name,
     final String desc)
   {
-    super(opcode, FIELD_INSN);
+    super(opcode);
     this.owner = owner;
     this.name = name;
     this.desc = desc;
@@ -95,7 +95,7 @@ public class FieldInsnNode extends AbstractInsnNode {
     this.opcode = opcode;
   }
 
-  public void accept (final MethodVisitor cv) {
+  public void accept (final CodeVisitor cv) {
     cv.visitFieldInsn(opcode, owner, name, desc);
   }
 }
