@@ -32,6 +32,7 @@ package org.objectweb.asm.tree;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.FrameVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
@@ -229,6 +230,12 @@ public class MethodNode extends MemberNode implements MethodVisitor {
 
     public void visitCode() {
     }
+    
+    public FrameVisitor visitFrame(int nLocal, int nStack) {
+        FrameNode frame = new FrameNode(nLocal, nStack);
+        instructions.add(frame);
+        return frame;
+    }
 
     public void visitInsn(final int opcode) {
         instructions.add(new InsnNode(opcode));
@@ -412,13 +419,13 @@ public class MethodNode extends MemberNode implements MethodVisitor {
         // visits the method's code
         if (instructions.size() > 0) {
             mv.visitCode();
-            // visits instructions
-            for (i = 0; i < instructions.size(); ++i) {
-                ((AbstractInsnNode) instructions.get(i)).accept(mv);
-            }
             // visits try catch blocks
             for (i = 0; i < tryCatchBlocks.size(); ++i) {
                 ((TryCatchBlockNode) tryCatchBlocks.get(i)).accept(mv);
+            }
+            // visits instructions
+            for (i = 0; i < instructions.size(); ++i) {
+                ((AbstractInsnNode) instructions.get(i)).accept(mv);
             }
             // visits local variables
             n = localVariables == null ? 0 : localVariables.size();

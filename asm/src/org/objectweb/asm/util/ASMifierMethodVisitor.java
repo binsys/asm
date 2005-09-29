@@ -30,6 +30,7 @@
 package org.objectweb.asm.util;
 
 import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.FrameVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Label;
 
@@ -43,7 +44,8 @@ import java.util.HashMap;
  * @author Eugene Kuleshov
  */
 public class ASMifierMethodVisitor extends ASMifierAbstractVisitor implements
-        MethodVisitor
+        MethodVisitor,
+        FrameVisitor
 {
 
     /**
@@ -85,6 +87,40 @@ public class ASMifierMethodVisitor extends ASMifierAbstractVisitor implements
 
     public void visitCode() {
         text.add("mv.visitCode();\n");
+    }
+
+    public FrameVisitor visitFrame(final int nLocal, final int nStack) {
+        buf.setLength(0);
+        buf.append("framev = mv.visitFrame(")
+                .append(nLocal)
+                .append(", ")
+                .append(nStack)
+                .append(");\n");
+        text.add(buf.toString());
+        return this;
+    }
+
+    public void visitPrimitiveType(final int type) {
+        buf.setLength(0);
+        buf.append("framev.visitPrimitiveType(").append(type).append(");\n");
+        text.add(buf.toString());
+    }
+
+    public void visitReferenceType(final String type) {
+        buf.setLength(0);
+        buf.append("framev.visitReferenceType(");
+        appendConstant(type);
+        buf.append(");\n");
+        text.add(buf.toString());
+    }
+
+    public void visitUninitializedType(final Label newInsn) {
+        buf.setLength(0);
+        declareLabel(newInsn);
+        buf.append("framev.visitUninitializedType(");
+        appendLabel(newInsn);
+        buf.append(");\n");
+        text.add(buf.toString());
     }
 
     public void visitInsn(final int opcode) {
@@ -259,6 +295,9 @@ public class ASMifierMethodVisitor extends ASMifierAbstractVisitor implements
         final String type)
     {
         buf.setLength(0);
+        declareLabel(start);
+        declareLabel(end);
+        declareLabel(handler);
         buf.append("mv.visitTryCatchBlock(");
         appendLabel(start);
         buf.append(", ");

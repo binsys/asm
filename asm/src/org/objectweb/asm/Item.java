@@ -49,6 +49,12 @@ final class Item {
      * (for Constant Integer, Long, Float, Double, STR, UTF8, Class, NameType,
      * Fieldref, Methodref, or InterfaceMethodref constant pool items
      * respectively).
+     * 
+     * Special Item types are used for Items that are stored in the ClassWriter
+     * {@link ClassWriter#typeTable}, instead of the constant pool, in order to
+     * avoid clashes with normal constant pool items in the ClassWriter constant
+     * pool's hash table. These special item types are E, B and K (for normal
+     * types, uninitialized types, and merged types, respectively).
      */
     char type;
 
@@ -192,6 +198,7 @@ final class Item {
             case 's':
             case 'S':
             case 'C':
+            case 'E':
                 hashCode = 0x7FFFFFFF & (type + strVal1.hashCode());
                 return;
             case 'T':
@@ -220,6 +227,7 @@ final class Item {
                 case 'I':
                     return i.intVal == intVal;
                 case 'J':
+                case 'K':
                     return i.longVal == longVal;
                 case 'F':
                     return i.floatVal == floatVal;
@@ -228,7 +236,10 @@ final class Item {
                 case 's':
                 case 'S':
                 case 'C':
+                case 'E':
                     return i.strVal1.equals(strVal1);
+                case 'B':
+                    return i.intVal == intVal && i.strVal1.equals(strVal1);
                 case 'T':
                     return i.strVal1.equals(strVal1)
                             && i.strVal2.equals(strVal2);

@@ -30,6 +30,7 @@
 package org.objectweb.asm.commons;
 
 import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.FrameVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
@@ -51,6 +52,7 @@ import java.util.Map;
  */
 public class GASMifierMethodVisitor extends ASMifierAbstractVisitor implements
         MethodVisitor,
+        FrameVisitor,
         Opcodes
 {
 
@@ -112,7 +114,41 @@ public class GASMifierMethodVisitor extends ASMifierAbstractVisitor implements
     }
 
     public void visitCode() {
-        /* text.add("mg.visitCode();\n"); */
+        text.add("mg.visitCode();\n");
+    }
+
+    public FrameVisitor visitFrame(final int nLocal, final int nStack) {
+        buf.setLength(0);
+        buf.append("framev = mg.visitFrame(")
+                .append(nLocal)
+                .append(", ")
+                .append(nStack)
+                .append(");\n");
+        text.add(buf.toString());
+        return this;
+    }
+
+    public void visitPrimitiveType(final int type) {
+        buf.setLength(0);
+        buf.append("framev.visitPrimitiveType(").append(type).append(");\n");
+        text.add(buf.toString());
+    }
+
+    public void visitReferenceType(final String type) {
+        buf.setLength(0);
+        buf.append("framev.visitReferenceType(\"")
+                .append(type)
+                .append("\");\n");
+        text.add(buf.toString());
+    }
+
+    public void visitUninitializedType(final Label newInsn) {
+        buf.setLength(0);
+        declareLabel(newInsn);
+        buf.append("framev.visitUninitializedType(");
+        appendLabel(newInsn);
+        buf.append(");\n");
+        text.add(buf.toString());
     }
 
     public void visitInsn(final int opcode) {
@@ -879,6 +915,9 @@ public class GASMifierMethodVisitor extends ASMifierAbstractVisitor implements
         final String type)
     {
         buf.setLength(0);
+        declareLabel(start);
+        declareLabel(end);
+        declareLabel(handler);
         buf.append("mg.visitTryCatchBlock(");
         appendLabel(start);
         buf.append(", ");

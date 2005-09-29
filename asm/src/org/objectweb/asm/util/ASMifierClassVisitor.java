@@ -181,7 +181,8 @@ public class ASMifierClassVisitor extends ASMifierAbstractVisitor implements
             System.exit(-1);
         }
         ClassReader cr;
-        if (args[i].endsWith(".class")) {
+        if (args[i].endsWith(".class") || args[i].indexOf('\\') > -1
+                || args[i].indexOf('/') > -1) {
             cr = new ClassReader(new FileInputStream(args[i]));
         } else {
             cr = new ClassReader(args[i]);
@@ -230,6 +231,7 @@ public class ASMifierClassVisitor extends ASMifierAbstractVisitor implements
         text.add("ClassWriter cw = new ClassWriter(false);\n");
         text.add("FieldVisitor fv;\n");
         text.add("MethodVisitor mv;\n");
+        text.add("FrameVisitor framev;\n");
         text.add("AnnotationVisitor av0;\n\n");
 
         buf.setLength(0);

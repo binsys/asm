@@ -34,11 +34,13 @@ import java.util.Map;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
+import org.objectweb.asm.FrameVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.util.AbstractVisitor;
+import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.helpers.AttributesImpl;
 
@@ -51,8 +53,11 @@ import org.xml.sax.helpers.AttributesImpl;
  * 
  * @author Eugene Kuleshov
  */
-public final class SAXCodeAdapter extends SAXAdapter implements MethodVisitor {
+public final class SAXCodeAdapter extends SAXAdapter implements MethodVisitor, FrameVisitor {
+    static String[] TYPES = { "top", "int", "float", "double", "long", "null", "uninitializedThis"};
     private Map labelNames;
+    private int local;
+    private int stack;
 
     /**
      * Constructs a new {@link SAXCodeAdapter SAXCodeAdapter} object.
@@ -69,9 +74,57 @@ public final class SAXCodeAdapter extends SAXAdapter implements MethodVisitor {
             addStart("code", new AttributesImpl());
         }
     }
-
+    
     public final void visitCode() {
     }
+
+    public final FrameVisitor visitFrame(int nLocal, int nStack) {
+        local = nLocal;
+        stack = nStack;
+
+        AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute( "", "locals", "locals", "", Integer.toString(nLocal));
+        atts.addAttribute( "", "stack", "stack", "", Integer.toString(nStack));
+        if (nLocal == 0 && nStack == 0) {
+            addElement("frame", atts);
+        } else {
+            addStart("frame", atts);
+        }
+        return this;
+    }
+    
+    public void visitPrimitiveType(int type) {
+        AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute( "", "type", "type", "", TYPES[ type]);
+        addFrameValue(atts);
+    }
+
+    public void visitReferenceType(String type) {
+        AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute( "", "type", "type", "", type);
+        addFrameValue(atts);
+    }
+
+    public void visitUninitializedType(Label newInsn) {
+        AttributesImpl atts = new AttributesImpl();
+        atts.addAttribute( "", "type", "type", "", "uninitialized");
+        atts.addAttribute( "", "label", "label", "", getLabel(newInsn));
+        addFrameValue(atts);
+    }
+    
+    private void addFrameValue(Attributes atts) {
+        if (local==0) {
+            addElement("stack", atts);
+            stack--;
+        } else {
+            addElement("local", atts);
+            local--;
+        }
+        if((stack + local)==0) {
+            addEnd( "frame");
+        }
+    }
+    
 
     public final void visitInsn(int opcode) {
         addElement(AbstractVisitor.OPCODES[opcode], new AttributesImpl());
