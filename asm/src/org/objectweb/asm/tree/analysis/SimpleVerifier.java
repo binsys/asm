@@ -82,9 +82,28 @@ public class SimpleVerifier extends BasicVerifier {
     }
 
     public Value newValue(final Type type) {
+        if ((type != null) && (type.getSort() == Type.ARRAY)) {
+            switch (type.getElementType().getSort()) {
+                case Type.BOOLEAN:
+                case Type.CHAR:
+                case Type.BYTE:
+                case Type.SHORT:
+                    return new BasicValue(type);
+            }
+        }
+
         Value v = super.newValue(type);
         if (v == BasicValue.REFERENCE_VALUE) {
-            v = new BasicValue(type);
+            if (type.getSort() == Type.ARRAY) {
+                v = newValue(type.getElementType());
+                String desc = ((BasicValue) v).getType().getDescriptor();
+                for (int i = 0; i < type.getDimensions(); ++i) {
+                    desc = "[" + desc;
+                }
+                v = new BasicValue(Type.getType(desc));
+            } else {
+                v = new BasicValue(type);
+            }
         }
         return v;
     }

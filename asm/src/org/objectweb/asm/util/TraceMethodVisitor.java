@@ -117,7 +117,7 @@ public class TraceMethodVisitor extends TraceAbstractVisitor implements
         if (attr instanceof Traceable) {
             ((Traceable) attr).trace(buf, labelNames);
         } else {
-            buf.append(" : ").append(attr.toString()).append("\n");
+            buf.append(" : unknown\n");
         }
 
         text.add(buf.toString());
@@ -161,6 +161,48 @@ public class TraceMethodVisitor extends TraceAbstractVisitor implements
     public void visitCode() {
         if (mv != null) {
             mv.visitCode();
+        }
+    }
+
+    public void visitFrame(
+        final int type,
+        final int nLocal,
+        final Object[] local,
+        final int nStack,
+        final Object[] stack)
+    {
+        buf.setLength(0);
+        buf.append("FRAME ");
+        switch (type) {
+            case Opcodes.F_NEW:
+            case Opcodes.F_FULL:
+                buf.append("FULL [");
+                appendFrameTypes(nLocal, local);
+                buf.append("] [");
+                appendFrameTypes(nStack, stack);
+                buf.append("]");
+                break;
+            case Opcodes.F_APPEND:
+                buf.append("APPEND [");
+                appendFrameTypes(nLocal, local);
+                buf.append("]");
+                break;
+            case Opcodes.F_CHOP:
+                buf.append("CHOP ").append(nLocal);
+                break;
+            case Opcodes.F_SAME:
+                buf.append("SAME");
+                break;
+            case Opcodes.F_SAME1:
+                buf.append("SAME1 ");
+                appendFrameTypes(1, stack);
+                break;
+        }
+        buf.append("\n");
+        text.add(buf.toString());
+
+        if (mv != null) {
+            mv.visitFrame(type, nLocal, local, nStack, stack);
         }
     }
 
@@ -475,6 +517,43 @@ public class TraceMethodVisitor extends TraceAbstractVisitor implements
     // ------------------------------------------------------------------------
     // Utility methods
     // ------------------------------------------------------------------------
+
+    private void appendFrameTypes(final int n, final Object[] o) {
+        for (int i = 0; i < n; ++i) {
+            if (i > 0) {
+                buf.append(' ');
+            }
+            if (o[i] instanceof String) {
+                buf.append(o[i]);
+            } else if (o[i] instanceof Integer) {
+                switch (((Integer) o[i]).intValue()) {
+                    case 0:
+                        buf.append('T');
+                        break;
+                    case 1:
+                        buf.append('I');
+                        break;
+                    case 2:
+                        buf.append('F');
+                        break;
+                    case 3:
+                        buf.append('D');
+                        break;
+                    case 4:
+                        buf.append('L');
+                        break;
+                    case 5:
+                        buf.append('N');
+                        break;
+                    case 6:
+                        buf.append('U');
+                        break;
+                }
+            } else {
+                appendLabel((Label) o[i]);
+            }
+        }
+    }
 
     /**
      * Appends the name of the given label to {@link #buf buf}. Creates a new

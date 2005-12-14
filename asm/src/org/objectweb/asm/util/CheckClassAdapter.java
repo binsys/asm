@@ -70,12 +70,12 @@ public class CheckClassAdapter extends ClassAdapter {
      * <tt>true</tt> if the visitSource method has been called.
      */
     private boolean source;
-
+    
     /**
      * <tt>true</tt> if the visitOuterClass method has been called.
      */
     private boolean outer;
-
+    
     /**
      * <tt>true</tt> if the visitEnd method has been called.
      */
@@ -104,12 +104,8 @@ public class CheckClassAdapter extends ClassAdapter {
             cr = new ClassReader(args[0]);
         }
 
-        verify(cr, false);
-    }
-
-    public static void verify(ClassReader cr, boolean dump) {
         ClassNode cn = new ClassNode();
-        cr.accept(new CheckClassAdapter(cn), true);
+        cr.accept(new CheckClassAdapter(cn), ClassReader.SKIP_DEBUG);
 
         List methods = cn.methods;
         for (int i = 0; i < methods.size(); ++i) {
@@ -121,15 +117,13 @@ public class CheckClassAdapter extends ClassAdapter {
                         (cn.access & Opcodes.ACC_INTERFACE) != 0));
                 try {
                     a.analyze(cn.name, method);
-                    if (!dump) {
-                        continue;
-                    }
+                    continue;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
                 final Frame[] frames = a.getFrames();
 
-                System.err.println(method.name + method.desc);
+                System.out.println(method.name + method.desc);
                 TraceMethodVisitor mv = new TraceMethodVisitor() {
                     public void visitMaxs(
                         final int maxStack,
@@ -142,11 +136,11 @@ public class CheckClassAdapter extends ClassAdapter {
                             while (s.length() < maxStack + maxLocals + 1) {
                                 s += " ";
                             }
-                            System.err.print(Integer.toString(i + 100000)
+                            System.out.print(Integer.toString(i + 100000)
                                     .substring(1));
-                            System.err.print(" " + s + " : " + text.get(i));
+                            System.out.print(" " + s + " : " + text.get(i));
                         }
-                        System.err.println();
+                        System.out.println();
                     }
                 };
                 for (int j = 0; j < method.instructions.size(); ++j) {
@@ -189,7 +183,9 @@ public class CheckClassAdapter extends ClassAdapter {
                 + Opcodes.ACC_ABSTRACT + Opcodes.ACC_SYNTHETIC
                 + Opcodes.ACC_ANNOTATION + Opcodes.ACC_ENUM
                 + Opcodes.ACC_DEPRECATED);
-        CheckMethodAdapter.checkInternalName(name, "class name");
+        if (!name.endsWith("package-info")) {
+            CheckMethodAdapter.checkInternalName(name, "class name");
+        }
         if (name.equals("java/lang/Object")) {
             if (superName != null) {
                 throw new IllegalArgumentException("The super class name of the Object class must be 'null'");

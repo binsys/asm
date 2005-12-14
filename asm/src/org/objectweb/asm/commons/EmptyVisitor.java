@@ -117,6 +117,15 @@ public class EmptyVisitor implements
     public void visitCode() {
     }
 
+    public void visitFrame(
+        int type,
+        int nLocal,
+        Object[] local,
+        int nStack,
+        Object[] stack)
+    {
+    }
+
     public void visitInsn(int opcode) {
     }
 

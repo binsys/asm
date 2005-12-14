@@ -32,9 +32,9 @@ package org.objectweb.asm;
 import junit.framework.TestSuite;
 
 /**
- * ClassWriter tests for copyPool() optimization.
+ * ClassWriter tests.
  * 
- * @author Eugene Kuleshov
+ * @author Eric Bruneton
  */
 public class ClassWriterTest2 extends AbstractTest {
 
@@ -44,8 +44,9 @@ public class ClassWriterTest2 extends AbstractTest {
 
     public void test() throws Exception {
         ClassReader cr = new ClassReader(is);
-        ClassWriter cw = new ClassWriter(cr, false);
-        cr.accept(cw, false);
-        assertEquals(cr, new ClassReader(cw.toByteArray()));
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cr.accept(cw, 0);
+        //computed maxStack and maxLocals may differ from original class
+        //assertEquals(cr, new ClassReader(cw.toByteArray()));
     }
 }

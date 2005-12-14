@@ -262,8 +262,7 @@ public class Processor {
             if (inRepresentation == BYTECODE) { // read bytecode and process it
                 // with handler
                 ClassReader cr = new ClassReader(readEntry(zis, ze));
-                cr.accept(new SAXClassAdapter(handler, singleInputDocument),
-                        false);
+                cr.accept(new SAXClassAdapter(handler, singleInputDocument), 0);
 
             } else { // read XML and process it with handler
                 XMLReader reader = XMLReaderFactory.createXMLReader();
@@ -437,7 +436,7 @@ public class Processor {
     }
 
     private static void showUsage() {
-        System.err.println("Usage: Main <in format> <out format> [-in <input jar>] [-out <output jar>] [-xslt <xslt file>]");
+        System.err.println("Usage: Main <in format> <out format> [-in <input jar>] [-out <output jar>] [-xslt <xslt fiel>]");
         System.err.println("  when -in or -out is omitted sysin and sysout would be used");
         System.err.println("  <in format> and <out format> - code | xml | singlexml");
     }
@@ -895,8 +894,9 @@ public class Processor {
      * {@link org.xml.sax.ContentHandler ContentHandler} obtained from
      * {@link java.net.ContentHandlerFactory ContentHandlerFactory}. This is
      * useful for running XSLT engine against large XML document that will
-     * hardly fit into the memory all together. <p> TODO use complete path for
-     * subdocumentRoot
+     * hardly fit into the memory all together.
+     * 
+     * <p> TODO use complete path for subdocumentRoot
      */
     private static final class OutputSlicingHandler extends DefaultHandler {
         private String subdocumentRoot;
