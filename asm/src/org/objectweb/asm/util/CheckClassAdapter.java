@@ -42,10 +42,8 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Attribute;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.TryCatchBlockNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.SimpleVerifier;
 import org.objectweb.asm.tree.analysis.Frame;
@@ -118,7 +116,7 @@ public class CheckClassAdapter extends ClassAdapter {
      */
     public static void verify(ClassReader cr, boolean dump, PrintWriter pw) {
         ClassNode cn = new ClassNode();
-        cr.accept(new CheckClassAdapter(cn), true);
+        cr.accept(new CheckClassAdapter(cn), ClassReader.SKIP_DEBUG);
 
         List methods = cn.methods;
         for (int i = 0; i < methods.size(); ++i) {
@@ -126,8 +124,7 @@ public class CheckClassAdapter extends ClassAdapter {
             if (method.instructions.size() > 0) {
                 Analyzer a = new Analyzer(new SimpleVerifier(Type.getType("L"
                         + cn.name + ";"),
-                        Type.getType("L" + cn.superName + ";"),
-                        (cn.access & Opcodes.ACC_INTERFACE) != 0));
+                        Type.getType("L" + cn.superName + ";")));
                 try {
                     a.analyze(cn.name, method);
                     if (!dump) {
@@ -139,47 +136,22 @@ public class CheckClassAdapter extends ClassAdapter {
                 Frame[] frames = a.getFrames();
 
                 TraceMethodVisitor mv = new TraceMethodVisitor();
-
+                method.accept(mv);
+                
                 pw.println(method.name + method.desc);
                 for (int j = 0; j < method.instructions.size(); ++j) {
-                    ((AbstractInsnNode) method.instructions.get(j)).accept(mv);
-                    
-                    StringBuffer s = new StringBuffer();
-                    Frame f = frames[j];
-                    if (f == null) {
-                        s.append('?');
-                    } else {
-                        for (int k = 0; k < f.getLocals(); ++k) {
-                            s.append(getShortName(f.getLocal(k).toString()))
-                                    .append(' ');
-                        }
-                        s.append(" : ");
-                        for (int k = 0; k < f.getStackSize(); ++k) {
-                            s.append(getShortName(f.getStack(k).toString()))
-                                    .append(' ');
-                        }
-                    }
-                    while (s.length() < method.maxStack + method.maxLocals + 1)
-                    {
-                        s.append(' ');
+                    String s = frames[j] == null
+                            ? "null"
+                            : frames[j].toString();
+                    while (s.length() < method.maxStack + method.maxLocals + 1) {
+                        s += " ";
                     }
                     pw.print(Integer.toString(j + 100000).substring(1));
-                    pw.print(" " + s + " : " + mv.buf); // mv.text.get(j));
-                }
-                for (int j = 0; j < method.tryCatchBlocks.size(); ++j) {
-                    ((TryCatchBlockNode) method.tryCatchBlocks.get(j)).accept(mv);
-                    pw.print(" " + mv.buf);
+                    pw.print(" " + s + " : " + mv.text.get(j));
                 }
                 pw.println();
             }
         }
-    }
-
-    private static String getShortName(String name) {
-        int n = name.lastIndexOf('/');
-        int k = name.length();
-        if(name.charAt(k-1)==';') k--;
-        return n==-1 ? name : name.substring(n+1, k);
     }
 
     /**
@@ -214,7 +186,9 @@ public class CheckClassAdapter extends ClassAdapter {
                 + Opcodes.ACC_ABSTRACT + Opcodes.ACC_SYNTHETIC
                 + Opcodes.ACC_ANNOTATION + Opcodes.ACC_ENUM
                 + Opcodes.ACC_DEPRECATED);
-        CheckMethodAdapter.checkInternalName(name, "class name");
+        if (!name.endsWith("package-info")) {
+            CheckMethodAdapter.checkInternalName(name, "class name");
+        }
         if ("java/lang/Object".equals(name)) {
             if (superName != null) {
                 throw new IllegalArgumentException("The super class name of the Object class must be 'null'");
@@ -255,7 +229,7 @@ public class CheckClassAdapter extends ClassAdapter {
     {
         checkState();
         if (outer) {
-            throw new IllegalStateException("visitSource can be called only once.");
+            throw new IllegalStateException("visitOuterClass can be called only once.");
         }
         outer = true;
         if (owner == null) {

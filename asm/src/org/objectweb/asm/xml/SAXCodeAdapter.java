@@ -52,6 +52,16 @@ import org.xml.sax.helpers.AttributesImpl;
  * @author Eugene Kuleshov
  */
 public final class SAXCodeAdapter extends SAXAdapter implements MethodVisitor {
+    
+    static String[] TYPES = {
+        "top",
+        "int",
+        "float",
+        "double",
+        "long",
+        "null",
+        "uninitializedThis" };
+
     private Map labelNames;
 
     /**
@@ -71,6 +81,59 @@ public final class SAXCodeAdapter extends SAXAdapter implements MethodVisitor {
     }
 
     public final void visitCode() {
+    }
+
+    public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
+        AttributesImpl attrs = new AttributesImpl();
+        switch (type) {
+            case Opcodes.F_NEW:
+            case Opcodes.F_FULL:
+                if (type == Opcodes.F_NEW) {
+                    attrs.addAttribute("", "type", "type", "", "NEW");
+                } else {
+                    attrs.addAttribute("", "type", "type", "", "FULL");
+                }
+                addStart("frame", attrs);
+                appendFrameTypes(true, nLocal, local);
+                appendFrameTypes(false, nStack, stack);
+                break;
+            case Opcodes.F_APPEND:
+                attrs.addAttribute("", "type", "type", "", "APPEND");
+                addStart("frame", attrs);
+                appendFrameTypes(true, nLocal, local);
+                break;
+            case Opcodes.F_CHOP:
+                attrs.addAttribute("", "type", "type", "", "CHOP");
+                attrs.addAttribute("", "count", "count", "", Integer.toString(nLocal));
+                addStart("frame", attrs);
+                break;
+            case Opcodes.F_SAME:
+                attrs.addAttribute("", "type", "type", "", "SAME");
+                addStart("frame", attrs);
+                break;
+            case Opcodes.F_SAME1:
+                attrs.addAttribute("", "type", "type", "", "SAME1");
+                addStart("frame", attrs);
+                appendFrameTypes(false, 1, stack);
+                break;
+        }
+        addEnd("frame");       
+    }
+    
+    private void appendFrameTypes(boolean local, int n, Object[] types) {
+        for (int i = 0; i < n; ++i) {
+            Object type = types[i];
+            AttributesImpl attrs = new AttributesImpl();
+            if (type instanceof String) {
+                attrs.addAttribute("", "type", "type", "", (String) type);
+            } else if (type instanceof Integer) {
+                attrs.addAttribute("", "type", "type", "", TYPES[((Integer) type).intValue()]);
+            } else {
+                attrs.addAttribute("", "type", "type", "", "uninitialized");
+                attrs.addAttribute("", "label", "label", "", getLabel((Label) type));
+            }
+            addElement(local ? "local" : "stack", attrs);
+        }        
     }
 
     public final void visitInsn(int opcode) {
