@@ -36,7 +36,7 @@ import org.objectweb.asm.ClassWriter;
 import junit.framework.TestSuite;
 
 /**
- * ClassWriter tests.
+ * ClassNode tests.
  * 
  * @author Eric Bruneton
  */
@@ -49,8 +49,8 @@ public class ClassNodeTest extends AbstractTest {
     public void test() throws Exception {
         ClassReader cr = new ClassReader(is);
         ClassNode cn = new ClassNode();
-        cr.accept(cn, false);
-        ClassWriter cw = new ClassWriter(false, true);
+        cr.accept(cn, 0);
+        ClassWriter cw = new ClassWriter(0);
         cn.accept(cw);
         assertEquals(cr, new ClassReader(cw.toByteArray()));
     }

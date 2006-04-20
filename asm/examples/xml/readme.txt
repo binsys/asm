@@ -24,8 +24,7 @@
   You can use the following command to transform
 
   java -jar asm-xml-<version>.jar <in format> <out format> 
-       [-in <input jar>] [-out <output jar>] [-xslt <xslt file>]
+       -in <input jar> -out <output jar> [-xslt <xslt fiel>]
 
-    where <in format> and <out format> is one of code, xml or singlexml
-    when -in or -out is omitted sysin and sysout would be used
+    where <in format> and <out format> is one of  code, xml or singlexml
 

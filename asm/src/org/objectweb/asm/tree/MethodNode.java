@@ -230,6 +230,16 @@ public class MethodNode extends MemberNode implements MethodVisitor {
     public void visitCode() {
     }
 
+    public void visitFrame(
+        final int type,
+        final int nLocal,
+        final Object[] local,
+        final int nStack,
+        final Object[] stack)
+    {
+        instructions.add(new FrameNode(type, nLocal, local, nStack, stack));
+    }
+
     public void visitInsn(final int opcode) {
         instructions.add(new InsnNode(opcode));
     }
@@ -356,7 +366,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
             accept(mv);
         }
     }
-    
+
     /**
      * Makes the given method visitor visit this method.
      * 

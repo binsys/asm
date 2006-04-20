@@ -4,7 +4,7 @@
   <name>@product.name@</name>
   <artifactId>@product.name@</artifactId>
   <groupId>asm</groupId>
-  <currentVersion>@product.artifact@</currentVersion>
+  <currentVersion>@product.version@</currentVersion>
   
   <organization>
     <name>ObjectWeb</name>
