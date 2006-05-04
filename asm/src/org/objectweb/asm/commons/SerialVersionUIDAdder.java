@@ -311,10 +311,6 @@ public class SerialVersionUIDAdder extends ClassAdapter {
      * @throws IOException
      */
     protected long computeSVUID() throws IOException {
-        if (hasSVUID) {
-            return 0;
-        }
-
         ByteArrayOutputStream bos = null;
         DataOutputStream dos = null;
         long svuid = 0;
@@ -420,6 +416,7 @@ public class SerialVersionUIDAdder extends ClassAdapter {
 
         return svuid;
     }
+
 
     /**
      * Returns the SHA-1 message digest of the given value.

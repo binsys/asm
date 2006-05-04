@@ -48,7 +48,7 @@ import org.objectweb.asm.signature.SignatureReader;
  * visitor chain to trace the class that is visited at a given point in this
  * chain. This may be uselful for debugging purposes. <p> The trace printed when
  * visiting the <tt>Hello</tt> class is the following: <p> <blockquote>
- * 
+ *
  * <pre>
  * // class version 49.0 (49)
  * // access flags 33
@@ -74,9 +74,9 @@ import org.objectweb.asm.signature.SignatureReader;
  *     MAXLOCALS = 1
  * }
  * </pre>
- * 
+ *
  * </blockquote> where <tt>Hello</tt> is defined by: <p> <blockquote>
- * 
+ *
  * <pre>
  * public class Hello {
  *
@@ -85,9 +85,9 @@ import org.objectweb.asm.signature.SignatureReader;
  *     }
  * }
  * </pre>
- * 
+ *
  * </blockquote>
- * 
+ *
  * @author Eric Bruneton
  * @author Eugene Kuleshov
  */
@@ -110,15 +110,15 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
      * Prints a disassembled view of the given class to the standard output. <p>
      * Usage: TraceClassVisitor [-debug] &lt;fully qualified class name or class
      * file name &gt;
-     * 
+     *
      * @param args the command line arguments.
-     * 
+     *
      * @throws Exception if the class cannot be found, or if an IO exception
      *         occurs.
      */
     public static void main(final String[] args) throws Exception {
         int i = 0;
-        boolean skipDebug = true;
+        int flags = ClassReader.SKIP_DEBUG;
 
         boolean ok = true;
         if (args.length < 1 || args.length > 2) {
@@ -126,7 +126,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
         }
         if (ok && args[0].equals("-debug")) {
             i = 1;
-            skipDebug = false;
+            flags = 0;
             if (args.length != 2) {
                 ok = false;
             }
@@ -147,12 +147,12 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
         }
         cr.accept(new TraceClassVisitor(new PrintWriter(System.out)),
                 getDefaultAttributes(),
-                skipDebug);
+                flags);
     }
 
     /**
      * Constructs a new {@link TraceClassVisitor}.
-     * 
+     *
      * @param pw the print writer to be used to print the class.
      */
     public TraceClassVisitor(final PrintWriter pw) {
@@ -161,7 +161,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
 
     /**
      * Constructs a new {@link TraceClassVisitor}.
-     * 
+     *
      * @param cv the {@link ClassVisitor} to which this visitor delegates calls.
      *        May be <tt>null</tt>.
      * @param pw the print writer to be used to print the class.
@@ -214,9 +214,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
             buf.append("@interface ");
         } else if ((access & Opcodes.ACC_INTERFACE) != 0) {
             buf.append("interface ");
-        } else if ((access & Opcodes.ACC_ENUM) != 0) {
-            buf.append("enum ");
-        } else {
+        } else if ((access & Opcodes.ACC_ENUM) == 0) {
             buf.append("class ");
         }
         appendDescriptor(INTERNAL_NAME, name);
@@ -273,12 +271,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
         buf.setLength(0);
         buf.append(tab).append("OUTERCLASS ");
         appendDescriptor(INTERNAL_NAME, owner);
-        // if enclosing name is null, so why should we show this info?
-        if (name != null) {
-            buf.append(' ').append(name).append(' ');
-        } else {
-            buf.append(' ');
-        }
+        buf.append(' ').append(name).append(' ');
         appendDescriptor(METHOD_DESCRIPTOR, desc);
         buf.append('\n');
         text.add(buf.toString());
@@ -317,19 +310,13 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
         final int access)
     {
         buf.setLength(0);
-        buf.append(tab).append("// access flags ").append(access
-                & ~Opcodes.ACC_SUPER).append('\n');
-        buf.append(tab);
-        appendAccess(access);
-        buf.append("INNERCLASS ");
-        if ((access & Opcodes.ACC_ENUM) != 0) {
-            buf.append("enum ");
-        }
+        buf.append(tab).append("INNERCLASS ");
         appendDescriptor(INTERNAL_NAME, name);
         buf.append(' ');
         appendDescriptor(INTERNAL_NAME, outerName);
         buf.append(' ');
         appendDescriptor(INTERNAL_NAME, innerName);
+        buf.append(' ').append(access & ~Opcodes.ACC_SUPER);
         buf.append('\n');
         text.add(buf.toString());
 
@@ -366,9 +353,6 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
 
         buf.append(tab);
         appendAccess(access);
-        if ((access & Opcodes.ACC_ENUM) != 0) {
-            buf.append("enum ");
-        }
 
         appendDescriptor(FIELD_DESCRIPTOR, desc);
         buf.append(' ').append(name);
@@ -407,10 +391,11 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
             buf.append(tab).append("// DEPRECATED\n");
         }
         buf.append(tab).append("// access flags ").append(access).append('\n');
-        buf.append(tab);
-        appendDescriptor(METHOD_SIGNATURE, signature);
 
         if (signature != null) {
+            buf.append(tab);
+            appendDescriptor(METHOD_SIGNATURE, signature);
+
             TraceSignatureVisitor v = new TraceSignatureVisitor(0);
             SignatureReader r = new SignatureReader(signature);
             r.accept(v);
@@ -430,6 +415,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
             buf.append('\n');
         }
 
+        buf.append(tab);
         appendAccess(access);
         if ((access & Opcodes.ACC_NATIVE) != 0) {
             buf.append("native ");
@@ -490,7 +476,7 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
     /**
      * Appends a string representation of the given access modifiers to {@link
      * #buf buf}.
-     * 
+     *
      * @param access some access modifiers.
      */
     private void appendAccess(final int access) {
@@ -518,17 +504,14 @@ public class TraceClassVisitor extends TraceAbstractVisitor implements
         if ((access & Opcodes.ACC_TRANSIENT) != 0) {
             buf.append("transient ");
         }
-        // if ((access & Constants.ACC_NATIVE) != 0) {
-        // buf.append("native ");
-        // }
         if ((access & Opcodes.ACC_ABSTRACT) != 0) {
             buf.append("abstract ");
         }
         if ((access & Opcodes.ACC_STRICT) != 0) {
             buf.append("strictfp ");
         }
-        if ((access & Opcodes.ACC_SYNTHETIC) != 0) {
-            buf.append("synthetic ");
+        if ((access & Opcodes.ACC_ENUM) != 0) {
+            buf.append("enum ");
         }
     }
 }
