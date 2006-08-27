@@ -78,16 +78,6 @@ public class Label {
     final static int REACHABLE = 64;
 
     /**
-     * Indicates if this basic block ends with a JSR instruction.
-     */
-    final static int JSR = 128;
-
-    /**
-     * Indicates if this basic block ends with a RET instruction.
-     */
-    final static int RET = 256;
-
-    /**
      * Field used to associate user information to a label.
      */
     public Object info;
@@ -102,8 +92,6 @@ public class Label {
      * @see #TARGET
      * @see #STORE
      * @see #REACHABLE
-     * @see #JSR
-     * @see #RET
      */
     int status;
 
@@ -167,7 +155,9 @@ public class Label {
      * semantics of this field depends on the algorithm that is used.
      * 
      * When only the maximum stack size is computed, this field is the number of
-     * elements in the input stack.
+     * elements in the input stack, plus one. Basic blocks that have never been
+     * visited have a null inputStackTop, and can therefore be distinguished
+     * from labels whose inputStackTop has already been computed.
      * 
      * When the stack map frames are completely computed, this field is the
      * offset of the first output stack element relatively to the top of the
@@ -194,10 +184,9 @@ public class Label {
 
     /**
      * The successor of this label, in the order they are visited. This linked
-     * list does not include labels used for debug info only. If
-     * {@link ClassWriter#COMPUTE_FRAMES} option is used then, in addition, it
-     * does not contain successive labels that denote the same bytecode position
-     * (in this case only the first label appears in this list).
+     * list does not include labels used for debug info only, nor successive
+     * labels that denote the same bytecode position (in this case only the
+     * first label appears in this list).
      */
     Label successor;
 

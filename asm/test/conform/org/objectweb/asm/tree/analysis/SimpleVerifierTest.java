@@ -56,8 +56,10 @@ public class SimpleVerifierTest extends AbstractTest {
         List methods = cn.methods;
         for (int i = 0; i < methods.size(); ++i) {
             MethodNode method = (MethodNode) methods.get(i);
-            Analyzer a = new Analyzer(new SimpleVerifier());
-            a.analyze(cn.name, method);
+            if (method.instructions.size() > 0) {
+                Analyzer a = new Analyzer(new SimpleVerifier());
+                a.analyze(cn.name, method);
+            }
         }
     }
 }

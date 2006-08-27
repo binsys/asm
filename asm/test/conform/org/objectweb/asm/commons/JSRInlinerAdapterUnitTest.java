@@ -29,7 +29,6 @@
  */
 package org.objectweb.asm.commons;
 
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
@@ -40,7 +39,7 @@ import junit.framework.TestCase;
 /**
  * JsrInlinerTest
  * 
- * @author Eugene Kuleshov, Niko Matsakis, Eric Bruneton
+ * @author Eugene Kuleshov, Niko Matsakis
  */
 public class JSRInlinerAdapterUnitTest extends TestCase {
 
@@ -50,8 +49,8 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
     protected void setUp() throws Exception {
         super.setUp();
-        jsr = new JSRInlinerAdapter(null, 0, "m", "()V", null, null);
-        exp = new MethodNode(0, "m", "()V", null, null);
+        jsr = new JSRInlinerAdapter(null, 0, "name", "desc", null, null);
+        exp = new MethodNode(0, "name", "desc", null, null);
     }
 
     private void setCurrent(final MethodVisitor cv) {
@@ -140,48 +139,9 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
         this.current.visitLocalVariable(name, desc, null, start, end, index);
     }
 
-    private void END(final int maxStack, final int maxLocals) {
-        this.current.visitMaxs(maxStack, maxLocals);
+    private void END() {
         this.current.visitEnd();
-        ClassWriter cw = new ClassWriter(0);
-        cw.visit(Opcodes.V1_1,
-                Opcodes.ACC_PUBLIC,
-                "C",
-                null,
-                "java/lang/Object",
-                null);
-        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC,
-                "<init>",
-                "()V",
-                null,
-                null);
-        mv.visitCode();
-        mv.visitVarInsn(Opcodes.ALOAD, 0);
-        mv.visitMethodInsn(Opcodes.INVOKESPECIAL,
-                "java/lang/Object",
-                "<init>",
-                "()V");
-        mv.visitInsn(Opcodes.RETURN);
-        mv.visitMaxs(1, 1);
-        mv.visitEnd();
-        ((MethodNode) this.current).accept(cw);
-        cw.visitEnd();
-        byte[] b = cw.toByteArray();
-        try {
-            TestClassLoader loader = new TestClassLoader();
-            Class c = loader.defineClass("C", b);
-            c.newInstance();
-        } catch (Throwable t) {
-            fail(t.getMessage());
-        }
         this.current = null;
-    }
-
-    static class TestClassLoader extends ClassLoader {
-
-        public Class defineClass(final String name, final byte[] b) {
-            return defineClass(name, b, 0, b.length);
-        }
     }
 
     /**
@@ -238,7 +198,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L0, L2, L2);
             TRYCATCH(L1, L4, L2);
 
-            END(1, 4);
+            END();
         }
 
         {
@@ -293,7 +253,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L0, L2, L2);
             TRYCATCH(L1, L4, L2);
 
-            END(1, 4);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -363,7 +323,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L0, L2, L2);
             TRYCATCH(L1, L6, L2);
 
-            END(1, 4);
+            END();
         }
 
         {
@@ -434,7 +394,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L0, L2, L2);
             TRYCATCH(L1, L6, L2);
 
-            END(1, 4);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -508,7 +468,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L0, L2, L2);
             TRYCATCH(L3, L5, L5);
 
-            END(2, 6);
+            END();
         }
 
         {
@@ -616,7 +576,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L3_1a, L5_1, L5_1);
             TRYCATCH(L3_2a, L5_2, L5_2);
 
-            END(2, 6);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -654,7 +614,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(jsr);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // L0: while loop header/try block
             LABEL(L0);
@@ -664,14 +624,11 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L3: implicit catch block
             LABEL(L3);
-            ASTORE(2);
             JSR(L1);
-            ALOAD(2);
             ATHROW();
 
             // L1: subroutine ...
             LABEL(L1);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4); // ...not that it does not return!
 
@@ -685,7 +642,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             TRYCATCH(L0, L3, L3);
 
-            END(1, 4);
+            END();
         }
 
         {
@@ -701,7 +658,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(exp);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // L0: while loop header/try block
             LABEL(L0);
@@ -713,11 +670,9 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L3: implicit catch block
             LABEL(L3);
-            ASTORE(2);
             ACONST_NULL();
             GOTO(L1_2a);
             LABEL(L1_2b); // L1_2b
-            ALOAD(2);
             ATHROW();
 
             // L2: end of the loop... goes back to the top!
@@ -727,7 +682,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L1_1a: first instantiation of subroutine ...
             LABEL(L1_1a);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4_1); // ...not that it does not return!
             LABEL(L4_1);
@@ -735,7 +689,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L1_2a: second instantiation of subroutine ...
             LABEL(L1_2a);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4_2); // ...not that it does not return!
             LABEL(L4_2);
@@ -743,52 +696,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             TRYCATCH(L0, L3, L3);
 
-            END(1, 4);
-        }
-
-        assertEquals(exp, jsr);
-    }
-
-    /**
-     * This tests a subroutine which has no ret statement, but ends in a
-     * "return" instead.
-     * 
-     * <pre>
-     *   JSR L0
-     * L0:
-     *   ASTORE 0 
-     *   RETURN 
-     * </pre>
-     */
-    public void testSubroutineWithNoRet2() {
-        {
-            Label L0 = new Label();
-
-            setCurrent(jsr);
-            JSR(L0);
-            LABEL(L0);
-            ASTORE(0);
-            RETURN();
-            END(1, 1);
-        }
-
-        {
-            Label L0_1a = new Label();
-            Label L0_1b = new Label();
-
-            setCurrent(exp);
-
-            ACONST_NULL();
-            GOTO(L0_1a);
-            LABEL(L0_1b);
-
-            // L0_1a: First instantiation of subroutine:
-            LABEL(L0_1a);
-            ASTORE(0);
-            RETURN();
-            LABEL(new Label()); // extra label emitted due to impl quirks
-
-            END(1, 1);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -828,7 +736,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(jsr);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // L5: while loop header
             LABEL(L5);
@@ -843,14 +751,11 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L3: implicit catch block
             LABEL(L3);
-            ASTORE(2);
             JSR(L1);
-            ALOAD(2);
             ATHROW();
 
             // L1: subroutine ...
             LABEL(L1);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4); // ...not that it does not return!
 
@@ -864,7 +769,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             TRYCATCH(L0, L3, L3);
 
-            END(1, 4);
+            END();
         }
 
         {
@@ -880,7 +785,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(exp);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // L5: while loop header
             LABEL(L5);
@@ -897,11 +802,9 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L3: implicit catch block
             LABEL(L3);
-            ASTORE(2);
             ACONST_NULL();
             GOTO(L1_2a);
             LABEL(L1_2b); // L1_2b
-            ALOAD(2);
             ATHROW();
 
             // L2: end of the loop... goes back to the top!
@@ -915,21 +818,19 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // L1_1a: first instantiation of subroutine ...
             LABEL(L1_1a);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4); // ...note that it does not return!
             LABEL(new Label()); // extra label emitted due to impl quirks
 
             // L1_2a: second instantiation of subroutine ...
             LABEL(L1_2a);
-            ASTORE(3);
             IINC(1, 2);
             GOTO(L4); // ...note that it does not return!
             LABEL(new Label()); // extra label emitted due to impl quirks
 
             TRYCATCH(L0, L3, L3);
 
-            END(1, 4);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -980,9 +881,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(jsr);
 
-            ICONST_0();
-            ISTORE(1);
-
             // T1: first try:
             LABEL(T1);
             JSR(S1);
@@ -1031,7 +929,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(T1, C1, C1);
             TRYCATCH(L, C2, C2);
 
-            END(1, 6);
+            END();
         }
 
         {
@@ -1068,9 +966,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             setCurrent(exp);
 
             // --- Main Subroutine ---
-
-            ICONST_0();
-            ISTORE(1);
 
             // T1: first try:
             LABEL(T1);
@@ -1191,7 +1086,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L_1, C2_1, C2_1); // duplicated try/finally for each...
             TRYCATCH(L_2, C2_2, C2_2); // ...instantiation of first sub
 
-            END(1, 6);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -1213,7 +1108,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(jsr);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // Invoke the two subroutines, each twice:
             JSR(L1);
@@ -1236,7 +1131,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             LABEL(L3);
             RETURN();
 
-            END(1, 2);
+            END();
         }
 
         {
@@ -1255,7 +1150,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(exp);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // Invoke the two subroutines, each twice:
             ACONST_NULL();
@@ -1301,7 +1196,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             LABEL(L3_4);
             RETURN();
 
-            END(1, 2);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -1322,7 +1217,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             setCurrent(jsr);
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
 
             // Invoke the subroutine, each twice:
             JSR(L1);
@@ -1349,7 +1244,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             JSR(L1);
             RETURN();
 
-            END(1, 3);
+            END();
         }
 
         {
@@ -1366,7 +1261,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
 
             // Main routine:
             ICONST_0();
-            ISTORE(1);
+            ASTORE(1);
             ACONST_NULL();
             GOTO(L1_1a);
             LABEL(L1_1b);
@@ -1400,7 +1295,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             GOTO(L1_2b);
             LABEL(new Label()); // extra label emitted due to impl quirks
 
-            END(1, 3);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -1454,9 +1349,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             int r2 = 5;
 
             setCurrent(jsr);
-
-            ICONST_0();
-            ISTORE(1);
 
             // OT: outermost try
             LABEL(OT);
@@ -1515,7 +1407,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L, C2, C2);
             TRYCATCH(OT, OC, OC);
 
-            END(1, 6);
+            END();
         }
 
         {
@@ -1565,9 +1457,6 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             setCurrent(exp);
 
             // --- Main Subroutine ---
-
-            ICONST_0();
-            ISTORE(1);
 
             // T1: outermost try / first try:
             LABEL(T1);
@@ -1711,7 +1600,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(OT_2_1, OC_2_1, OC);
             TRYCATCH(OT_2_2, OC_2_2, OC);
 
-            END(1, 6);
+            END();
         }
 
         assertEquals(exp, jsr);
@@ -1777,7 +1666,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             TRYCATCH(L1, L4, L2);
             LOCALVAR("a", "I", 1, LM1, L4);
 
-            END(1, 4);
+            END();
         }
 
         {
@@ -1843,7 +1732,7 @@ public class JSRInlinerAdapterUnitTest extends TestCase {
             LOCALVAR("a", "I", 1, L3_1a, L3_1c);
             LOCALVAR("a", "I", 1, L3_2a, L3_2c);
 
-            END(1, 4);
+            END();
         }
 
         assertEquals(exp, jsr);

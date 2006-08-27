@@ -381,11 +381,7 @@ public class SimpleVerifierUnitTest extends TestCase implements Opcodes {
         assertValid();
     }
 
-    public void _testOverlappingSubroutines() {
-        // TODO currently Analyzer can not detect this situation. The problem
-        // is that other overlapping subroutine situations are valid, such as
-        // when a nested subroutine implicitely returns to its parent
-        // subroutine, without a RET.
+    public void testOverlappingSubroutines() {
         Label l0 = new Label();
         Label l1 = new Label();
         Label l2 = new Label();

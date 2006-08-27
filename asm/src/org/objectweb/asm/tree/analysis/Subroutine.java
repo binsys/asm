@@ -71,7 +71,12 @@ class Subroutine {
         return result;
     }
 
-    public boolean merge(final Subroutine subroutine) throws AnalyzerException {
+    public boolean merge(final Subroutine subroutine, final boolean checkOverlap)
+            throws AnalyzerException
+    {
+        if (checkOverlap && subroutine.start != start) {
+            throw new AnalyzerException("Overlapping sub routines");
+        }
         boolean changes = false;
         for (int i = 0; i < access.length; ++i) {
             if (subroutine.access[i] && !access[i]) {
@@ -79,13 +84,11 @@ class Subroutine {
                 changes = true;
             }
         }
-        if (subroutine.start == start) {
-            for (int i = 0; i < subroutine.callers.size(); ++i) {
-                Object caller = subroutine.callers.get(i);
-                if (!callers.contains(caller)) {
-                    callers.add(caller);
-                    changes = true;
-                }
+        for (int i = 0; i < subroutine.callers.size(); ++i) {
+            Object caller = subroutine.callers.get(i);
+            if (!callers.contains(caller)) {
+                callers.add(caller);
+                changes = true;
             }
         }
         return changes;

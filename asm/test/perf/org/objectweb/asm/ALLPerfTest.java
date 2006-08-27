@@ -242,11 +242,13 @@ public abstract class ALLPerfTest extends ClassLoader {
                 List methods = cn.methods;
                 for (int k = 0; k < methods.size(); ++k) {
                     MethodNode method = (MethodNode) methods.get(k);
-                    Analyzer a = new Analyzer(new SimpleVerifier());
-                    try {
-                        a.analyze(cn.name, method);
-                    } catch (Throwable th) {
-                        ++errors;
+                    if (method.instructions.size() > 0) {
+                        Analyzer a = new Analyzer(new SimpleVerifier());
+                        try {
+                            a.analyze(cn.name, method);
+                        } catch (Throwable th) {
+                            ++errors;
+                        }
                     }
                 }
             }

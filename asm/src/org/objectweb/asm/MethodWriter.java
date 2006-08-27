@@ -322,11 +322,6 @@ class MethodWriter implements MethodVisitor {
      */
     private boolean resize;
 
-    /**
-     * Indicates if the instructions contain at least one JSR instruction.
-     */
-    private boolean jsr;
-
     // ------------------------------------------------------------------------
 
     /*
@@ -349,10 +344,13 @@ class MethodWriter implements MethodVisitor {
     private int compute;
 
     /**
-     * A list of labels. This list is the list of basic blocks in the method,
-     * i.e. a list of Label objects linked to each other by their
-     * {@link Label#successor} field, in the order they are visited by
-     * {@link visitLabel}, and starting with the first basic block.
+     * A list of labels. If {@link #FRAMES} option is used, this list is the
+     * list of basic blocks in the method, i.e. a list of Label objects linked
+     * to each other by their {@link Label#successor} field, and starting with
+     * the first basic block. If {@link #MAXS} option is used, this list is the
+     * basic block stack used by the control flow analysis algorithm, i.e. a
+     * list of Label objects linked to each other by their {@link Label#next}
+     * field.
      */
     private Label labels;
 
@@ -666,10 +664,6 @@ class MethodWriter implements MethodVisitor {
                 // updates current and max stack sizes
                 if (opcode == Opcodes.RET) {
                     // no stack change, but end of current block (no successor)
-                    currentBlock.status |= Label.RET;
-                    // save 'stackSize' here for future use
-                    // (see {@link #findSubroutineSuccessors})
-                    currentBlock.inputStackTop = stackSize;
                     noSuccessor();
                 } else { // xLOAD or xSTORE
                     int size = stackSize + Frame.SIZE[opcode];
@@ -679,8 +673,6 @@ class MethodWriter implements MethodVisitor {
                     stackSize = size;
                 }
             }
-        }
-        if (compute != NOTHING) {
             // updates max locals
             int n;
             if (opcode == Opcodes.LLOAD || opcode == Opcodes.DLOAD
@@ -840,30 +832,24 @@ class MethodWriter implements MethodVisitor {
                 // 'label' is the target of a jump instruction
                 label.getFirst().status |= Label.TARGET;
                 // adds 'label' as a successor of this basic block
-                addSuccessor(Edge.NORMAL, label);
+                addSuccessor(opcode == Opcodes.JSR ? Edge.JSR : Edge.NORMAL,
+                        label);
                 if (opcode != Opcodes.GOTO) {
                     // creates a Label for the next basic block
                     nextInsn = new Label();
                 }
             } else {
                 if (opcode == Opcodes.JSR) {
-                    jsr = true;
-                    currentBlock.status |= Label.JSR;
                     addSuccessor(stackSize + 1, label);
-                    // creates a Label for the next basic block
-                    nextInsn = new Label();
-                    /*
-                     * note that, by construction in this method, a JSR block
-                     * has at least two successors in the control flow graph:
-                     * the first one leads the next instruction after the JSR,
-                     * while the second one leads to the JSR target.
-                     */
                 } else {
                     // updates current stack size (max stack size unchanged
                     // because stack size variation always negative in this
                     // case)
                     stackSize += Frame.SIZE[opcode];
                     addSuccessor(stackSize, label);
+                }
+                if (opcode == Opcodes.GOTO) {
+                    noSuccessor();
                 }
             }
         }
@@ -905,15 +891,14 @@ class MethodWriter implements MethodVisitor {
             code.putByte(opcode);
             label.put(this, code, code.length - 1, false);
         }
-        if (currentBlock != null) {
+        if (currentBlock != null && compute == FRAMES) {
+            // if the jump instruction is not a GOTO, the next instruction is
+            // also a successor of this instruction. Calling visitLabel adds the
+            // label of this next instruction as a successor of the current
+            // block, and starts a new basic block
             if (nextInsn != null) {
-                // if the jump instruction is not a GOTO, the next instruction
-                // is also a successor of this instruction. Calling visitLabel
-                // adds the label of this next instruction as a successor of the
-                // current block, and starts a new basic block
                 visitLabel(nextInsn);
-            }
-            if (opcode == Opcodes.GOTO) {
+            } else {
                 noSuccessor();
             }
         }
@@ -965,11 +950,6 @@ class MethodWriter implements MethodVisitor {
             // resets the relative current and max stack sizes
             stackSize = 0;
             maxStackSize = 0;
-            // updates the basic block list
-            if (previousBlock != null) {
-                previousBlock.successor = label;
-            }
-            previousBlock = label;
         }
     }
 
@@ -1011,8 +991,6 @@ class MethodWriter implements MethodVisitor {
             if (compute == FRAMES) {
                 currentBlock.frame.execute(Opcodes.IINC, var, null, null);
             }
-        }
-        if (compute != NOTHING) {
             // updates max locals
             int n = var + 1;
             if (n > maxLocals) {
@@ -1115,6 +1093,13 @@ class MethodWriter implements MethodVisitor {
         final Label handler,
         final String type)
     {
+        if (compute == MAXS && (handler.status & Label.PUSHED) == 0) {
+            // pushes handler block onto the stack of blocks to be visited
+            handler.status |= Label.PUSHED;
+            handler.inputStackTop = 1;
+            handler.next = labels;
+            labels = handler;
+        }
         ++handlerCount;
         Handler h = new Handler();
         h.start = start;
@@ -1158,10 +1143,10 @@ class MethodWriter implements MethodVisitor {
                 .putShort(cw.newUTF8(name))
                 .putShort(cw.newUTF8(desc))
                 .putShort(index);
-        if (compute != NOTHING) {
+        if (compute <= MAXS) {
             // updates max locals
             char c = desc.charAt(0);
-            int n = index + (c == 'J' || c == 'D' ? 2 : 1);
+            int n = index + (c == 'L' || c == 'D' ? 2 : 1);
             if (n > maxLocals) {
                 maxLocals = n;
             }
@@ -1179,6 +1164,12 @@ class MethodWriter implements MethodVisitor {
 
     public void visitMaxs(final int maxStack, final int maxLocals) {
         if (compute == FRAMES) {
+            // creates and visits the first (implicit) frame
+            Frame f = labels.frame;
+            Type[] args = Type.getArgumentTypes(descriptor);
+            f.initInputFrame(cw, access, args, this.maxLocals);
+            visitFrame(f);
+
             // completes the control flow graph with exception handler blocks
             Handler handler = firstHandler;
             while (handler != null) {
@@ -1206,12 +1197,6 @@ class MethodWriter implements MethodVisitor {
                 }
                 handler = handler.next;
             }
-
-            // creates and visits the first (implicit) frame
-            Frame f = labels.frame;
-            Type[] args = Type.getArgumentTypes(descriptor);
-            f.initInputFrame(cw, access, args, this.maxLocals);
-            visitFrame(f);
 
             /*
              * fix point algorithm: mark the first basic block as 'changed'
@@ -1283,67 +1268,6 @@ class MethodWriter implements MethodVisitor {
                 l = l.successor;
             }
         } else if (compute == MAXS) {
-            // completes the control flow graph with exception handler blocks
-            Handler handler = firstHandler;
-            while (handler != null) {
-                Label l = handler.start;
-                Label h = handler.handler;
-                Label e = handler.end;
-                // adds 'h' as a successor of labels between 'start' and 'end'
-                while (l != e) {
-                    // creates an edge to 'h'
-                    Edge b = new Edge();
-                    b.info = Edge.EXCEPTION;
-                    b.successor = h;
-                    // adds it to the successors of 'l'
-                    if ((l.status & Label.JSR) != 0) {
-                        // if l is a JSR block, adds b after the first two edges
-                        // to preserve the hypothesis about JSR block successors
-                        // order (see {@link #visitJumpInsn})
-                        b.next = l.successors.next.next;
-                        l.successors.next.next = b;
-                    } else {
-                        b.next = l.successors;
-                        l.successors = b;
-                    }
-                    // goes to the next label
-                    l = l.successor;
-                }
-                handler = handler.next;
-            }
-
-            if (jsr) {
-                // completes the control flow graph with the RET successors
-                /*
-                 * first step: finds the subroutines. This step determines, for
-                 * each basic block, to which subroutine(s) it belongs, and
-                 * stores this set as a bit set in the {@link Label#status}
-                 * field. Subroutines are numbered with powers of two, from
-                 * 0x1000 to 0x80000000 (so there must be at most 20 subroutines
-                 * in a method).
-                 */
-                // finds the basic blocks that belong to the "main" subroutine
-                int id = 0x1000;
-                findSubroutine(labels, id);
-                // finds the basic blocks that belong to the real subroutines
-                Label l = labels;
-                while (l != null) {
-                    if ((l.status & Label.JSR) != 0) {
-                        // the subroutine is defined by l's TARGET, not by l
-                        Label subroutine = l.successors.next.successor;
-                        // if this subroutine does not have an id yet...
-                        if ((subroutine.status & ~0xFFF) == 0) {
-                            // ...assigns it a new id and finds its basic blocks
-                            id = id << 1;
-                            findSubroutine(subroutine, id);
-                        }
-                    }
-                    l = l.successor;
-                }
-                // second step: finds the successors of RET blocks
-                findSubroutineSuccessors(0x1000, new Label[10], 0);
-            }
-
             /*
              * control flow analysis algorithm: while the block stack is not
              * empty, pop a block from this stack, update the max stack size,
@@ -1369,18 +1293,15 @@ class MethodWriter implements MethodVisitor {
                 }
                 // analyses the successors of the block
                 Edge b = l.successors;
-                if ((l.status & Label.JSR) != 0) {
-                    // ignores the first edge of JSR blocks (virtual successor)
-                    b = b.next;
-                }
                 while (b != null) {
                     l = b.successor;
-                    // if this successor has not already been pushed...
+                    // if this successor has not already been pushed onto the
+                    // stack...
                     if ((l.status & Label.PUSHED) == 0) {
-                        // computes its true beginning stack size...
-                        l.inputStackTop = b.info == Edge.EXCEPTION ? 1 : start
-                                + b.info;
-                        // ...and pushes it onto the stack
+                        // computes the true beginning stack size of this
+                        // successor block
+                        l.inputStackTop = start + b.info;
+                        // pushes this successor onto the stack
                         l.status |= Label.PUSHED;
                         l.next = stack;
                         stack = l;
@@ -1447,8 +1368,8 @@ class MethodWriter implements MethodVisitor {
      * @param successor the successor block to be added to the current block.
      */
     private void addSuccessor(final int info, final Label successor) {
-        // creates and initializes an Edge object...
         Edge b = new Edge();
+        // initializes the previous Edge object...
         b.info = info;
         b.successor = successor;
         // ...and adds it to the successor list of the currentBlock block
@@ -1472,95 +1393,6 @@ class MethodWriter implements MethodVisitor {
             currentBlock.outputStackMax = maxStackSize;
         }
         currentBlock = null;
-    }
-
-    /**
-     * Finds the basic blocks that belong to a given subroutine, and marks these
-     * blocks as belonging to this subroutine (by using {@link Label#status} as
-     * a bit set (see {@link #visitMaxs}). This recursive method follows the
-     * control flow graph to find all the blocks that are reachable from the
-     * given block WITHOUT following any JSR target.
-     * 
-     * @param block a block that belongs to the subroutine
-     * @param id the id of this subroutine
-     */
-    private void findSubroutine(final Label block, final int id) {
-        // if 'block' is already marked as belonging to subroutine 'id', returns
-        if ((block.status & id) != 0) {
-            return;
-        }
-        // marks 'block' as belonging to subroutine 'id'
-        block.status |= id;
-        // calls this method recursively on each successor, except JSR targets
-        Edge e = block.successors;
-        while (e != null) {
-            // if 'block' is a JSR block, then 'block.successors.next' leads
-            // to the JSR target (see {@link #visitJumpInsn}) and must therefore
-            // not be followed
-            if ((block.status & Label.JSR) == 0 || e != block.successors.next) {
-                findSubroutine(e.successor, id);
-            }
-            e = e.next;
-        }
-    }
-
-    /**
-     * Finds the successors of the RET blocks of the specified subroutine, and
-     * of any nested subroutine it calls.
-     * 
-     * @param id id of the subroutine whose RET block successors must be found.
-     * @param JSRs the JSR blocks that were followed to reach this subroutine.
-     * @param nJSRs number of JSR blocks in the JSRs array.
-     */
-    private void findSubroutineSuccessors(
-        final int id,
-        final Label[] JSRs,
-        final int nJSRs)
-    {
-        // iterates over all the basic blocks...
-        Label l = labels;
-        while (l != null) {
-            // for those that belong to subroutine 'id'...
-            if ((l.status & id) != 0) {
-                if ((l.status & Label.JSR) != 0) {
-                    // finds the subroutine to which 'l' leads by following the
-                    // second edge of l.successors (see {@link #visitJumpInsn})
-                    int nId = l.successors.next.successor.status & ~0xFFF;
-                    if (nId != id) {
-                        // calls this method recursively with l pushed onto the
-                        // JSRs stack to find the successors of the RET blocks
-                        // of this nested subroutine 'nId'
-                        JSRs[nJSRs] = l;
-                        findSubroutineSuccessors(nId, JSRs, nJSRs + 1);
-                    }
-                } else if ((l.status & Label.RET) != 0) {
-                    /*
-                     * finds the JSR block in the JSRs stack that corresponds to
-                     * this RET block, and updates the successors of this RET
-                     * block accordingly. This corresponding JSR is the one that
-                     * leads to the subroutine to which the RET block belongs.
-                     * But the RET block can belong to several subroutines (if a
-                     * nested subroutine returns to its parent subroutine
-                     * implicitely, without a RET). So, in fact, the JSR that
-                     * corresponds to this RET is the first block in the JSRs
-                     * stack, starting from the bottom of the stack, that leads
-                     * to a subroutine to which the RET block belongs.
-                     */
-                    for (int i = 0; i < nJSRs; ++i) {
-                        int JSRstatus = JSRs[i].successors.next.successor.status;
-                        if (((JSRstatus & ~0xFFF) & (l.status & ~0xFFF)) != 0) {
-                            Edge e = new Edge();
-                            e.info = l.inputStackTop;
-                            e.successor = JSRs[i].successors.successor;
-                            e.next = l.successors;
-                            l.successors = e;
-                            break;
-                        }
-                    }
-                }
-            }
-            l = l.successor;
-        }
     }
 
     // ------------------------------------------------------------------------

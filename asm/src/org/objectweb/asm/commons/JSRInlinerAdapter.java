@@ -74,17 +74,28 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
     private MethodVisitor mv;
 
     /**
+     * If the method contains at least one JSR instruction.
+     */
+    private boolean seenJSR;
+
+    /**
+     * This counter is used to provide increment ids to the subroutines. Those
+     * are really only used for debugging print outs.
+     */
+    private int subroutineId = 0;
+
+    /**
      * For each label that is jumped to by a JSR, we create a Subroutine
      * instance. Map<Label,Subroutine> is the generic type.
      */
-    private final Map subroutineHeads = new HashMap();
+    private final Map subroutineHeads = new Hashtable();
 
     /**
      * This subroutine instance denotes the line of execution that is not
      * contained within any subroutine; i.e., the "subroutine" that is executing
      * when a method first begins.
      */
-    private final Subroutine mainSubroutine = new Subroutine();
+    private final Subroutine mainSubroutine = new Subroutine(-1);
 
     /**
      * This BitSet contains the index of every instruction that belongs to more
@@ -125,8 +136,8 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
      */
     public void visitJumpInsn(final int opcode, final Label lbl) {
         super.visitJumpInsn(opcode, lbl);
-        if (opcode == JSR && !subroutineHeads.containsKey(lbl)) {
-            subroutineHeads.put(lbl, new Subroutine());
+        if (opcode == JSR) {
+            seenJSR = true;
         }
     }
 
@@ -135,10 +146,11 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
      * the byte codes untouched.
      */
     public void visitEnd() {
-        if (!subroutineHeads.isEmpty()) {
+        if (seenJSR) {
             if (LOGGING) {
                 log("started w/ method:" + this.name);
             }
+            populateSubroutineHeads();
             markSubroutines();
             if (LOGGING) {
                 logSource();
@@ -152,6 +164,22 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
         // Forward the translate opcodes on if appropriate:
         if (mv != null) {
             accept(mv);
+        }
+    }
+
+    /**
+     * Find all labels nodes and put their index into mLabels.
+     */
+    private void populateSubroutineHeads() {
+        for (int i = 0, c = instructions.size(); i < c; i++) {
+            AbstractInsnNode node = instructions.get(i);
+            if (node.getOpcode() == JSR) {
+                LabelNode tar = ((JumpInsnNode) node).label;
+                if (!subroutineHeads.containsKey(tar)) {
+                    Subroutine subr = new Subroutine(subroutineId++);
+                    subroutineHeads.put(tar, subr);
+                }
+            }
         }
     }
 
@@ -420,7 +448,7 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
                 // for the appropriate instantiation. The problem is that the
                 // subroutine may "fall through" to the ret of a parent
                 // subroutine; therefore, to find the appropriate ret label we
-                // find the lowest subroutine on the stack that claims to own
+                // find the highest subroutine on the stack that claims to own
                 // this instruction. See the class javadoc comment for an
                 // explanation on why this technique is safe (note: it is only
                 // safe if the input is verifiable).
@@ -549,16 +577,18 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
         log("--------------------------------------------------------");
         log("Input source");
         for (int i = 0; i < instructions.size(); i++) {
-            String lnum = "000" + i;
-            int n = lnum.length();
+            String lnum = Integer.toString(i);
+            while (lnum.length() < 3) {
+                lnum = "0" + lnum;
+            }
             AbstractInsnNode insn = instructions.get(i);
             String desc = insnDesc(insn);
-            log(lnum.substring(n-3, n) + ": " + desc);
+            log(lnum + ": " + desc);
         }
-        log(""+mainSubroutine);
+        log(mainSubroutine + ": " + mainSubroutine.instructions);
         for (Iterator it = subroutineHeads.values().iterator(); it.hasNext();) {
             Subroutine sub = (Subroutine) it.next();
-            log(""+sub);
+            log(sub + ": " + sub.instructions);
         }
     }
 
@@ -568,7 +598,13 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
 
     protected static class Subroutine {
 
+        public final int id;
+
         public final BitSet instructions = new BitSet();
+
+        public Subroutine(final int id) {
+            this.id = id;
+        }
 
         public void addInstruction(final int idx) {
             instructions.set(idx);
@@ -579,7 +615,7 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
         }
 
         public String toString() {
-            return "Subroutine: " + instructions;
+            return "[Subroutine #" + id + "]";
         }
     }
 
@@ -612,7 +648,7 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
          * Note that in the presence of dual citizens instructions, that is,
          * instructions which belong to more than one subroutine due to the
          * merging of control flow without a RET instruction, we will map the
-         * target label of a GOTO to the label used by the instantiation lowest
+         * target label of a GOTO to the label used by the instantiation highest
          * on the stack. This avoids code duplication during inlining in most
          * cases.
          * 
@@ -689,7 +725,7 @@ public class JSRInlinerAdapter extends MethodNode implements Opcodes {
          * subroutines; this is called a "dual citizen" instruction (though it
          * may belong to more than 2 subroutines), and occurs when multiple
          * subroutines branch to common points of control. In this case, the
-         * owner is the subroutine that appears lowest on the stack, and which
+         * owner is the subroutine that appears highest on the stack, and which
          * also owns the instruction in question.
          * 
          * @param i the index of the instruction in the original code

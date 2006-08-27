@@ -37,6 +37,11 @@ package org.objectweb.asm;
 class Edge {
 
     /**
+     * Denotes a control flow graph edge corresponding to a JSR instruction.
+     */
+    final static int JSR = -1;
+
+    /**
      * Denotes a normal control flow graph edge.
      */
     final static int NORMAL = 0;
@@ -48,7 +53,7 @@ class Edge {
      * the index, in the {@link ClassWriter} type table, of the exception that
      * is catched.
      */
-    final static int EXCEPTION = 0x7FFFFFFF;
+    final static int EXCEPTION = 1;
 
     /**
      * Information about this control flow graph edge. If
@@ -57,8 +62,8 @@ class Edge {
      * is equal to the stack size at the "jump" instruction to which this edge
      * corresponds, relatively to the stack size at the beginning of the
      * originating basic block. If {@link ClassWriter#COMPUTE_FRAMES} is used,
-     * this field is the kind of this control flow graph edge (i.e. NORMAL or
-     * EXCEPTION).
+     * this field is the kind of this control flow graph edge (i.e. JSR, NORMAL
+     * or EXCEPTION).
      */
     int info;
 
