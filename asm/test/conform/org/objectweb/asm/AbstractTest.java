@@ -67,19 +67,34 @@ public abstract class AbstractTest extends TestCase {
 
     protected TestSuite getSuite() throws Exception {
         TestSuite suite = new TestSuite(getClass().getName());
-        String files = System.getProperty("asm.test") + ",";
+        String files = System.getProperty("asm.test");
         String clazz = System.getProperty("asm.test.class");
-        String partcount = System.getProperty("parts");
-        String partid = System.getProperty("part");
-        int parts = partcount == null ? 1 : Integer.parseInt(partcount);
-        int part = partid == null ? 0 : Integer.parseInt(partid);
-        int id = 0;
+        if(files==null) {
+            files = System.getProperty("java.home") + File.separator + "lib" + File.separator + "rt.jar";
+            if(clazz==null) {
+                clazz = "java.lang.";
+            }
+        }
+        files += ",";
+
         while (files.indexOf(',') != -1) {
             String file = files.substring(0, files.indexOf(','));
             files = files.substring(files.indexOf(',') + 1);
             File f = new File(file);
             if (f.isDirectory()) {
-                scanDirectory("", f, suite, clazz);
+                File[] fs = f.listFiles();
+                for (int i = 0; i < fs.length; ++i) {
+                    String n = fs[i].getName();
+                    if (n.endsWith(".class")) {
+                        n = n.substring(0, n.length() - 6).replace('/', '.');
+                        if (clazz == null || n.indexOf(clazz) != -1) {
+                            InputStream is = new FileInputStream(fs[i]);
+                            AbstractTest t = (AbstractTest) getClass().newInstance();
+                            t.init(n, is);
+                            suite.addTest(t);
+                        }
+                    }
+                }
             } else {
                 ZipFile zip = new ZipFile(file);
                 Enumeration entries = zip.entries();
@@ -89,13 +104,10 @@ public abstract class AbstractTest extends TestCase {
                     if (n.endsWith(".class")) {
                         n = n.substring(0, n.length() - 6).replace('/', '.');
                         if (clazz == null || n.indexOf(clazz) != -1) {
-                            if (id % parts == part) {
-                                InputStream is = zip.getInputStream(e);
-                                AbstractTest t = (AbstractTest) getClass().newInstance();
-                                t.init(n, is);
-                                suite.addTest(t);
-                            }
-                            ++id;
+                            InputStream is = zip.getInputStream(e);
+                            AbstractTest t = (AbstractTest) getClass().newInstance();
+                            t.init(n, is);
+                            suite.addTest(t);
                         }
                     }
                 }
@@ -104,57 +116,18 @@ public abstract class AbstractTest extends TestCase {
         return suite;
     }
 
-    private void scanDirectory(
-        final String path,
-        final File f,
-        final TestSuite suite,
-        final String clazz) throws Exception
-    {
-        File[] fs = f.listFiles();
-        for (int i = 0; i < fs.length; ++i) {
-            String n = fs[i].getName();
-            if (fs[i].isDirectory()) {
-                scanDirectory(path.length() == 0 ? n : path + "." + n,
-                        fs[i],
-                        suite,
-                        clazz);
-            } else if (n.endsWith(".class")) {
-                n = n.substring(0, n.length() - 6);
-                InputStream is = new FileInputStream(fs[i]);
-                AbstractTest t = (AbstractTest) getClass().newInstance();
-                t.init(path.length() == 0 ? n : path + "." + n, is);
-                suite.addTest(t);
-            }
-        }
-    }
-
     public abstract void test() throws Exception;
 
     public void assertEquals(final ClassReader cr1, final ClassReader cr2)
             throws Exception
-    {
-        assertEquals(cr1, cr2, null, null);
-    }
-
-    public void assertEquals(
-        final ClassReader cr1,
-        final ClassReader cr2,
-        final ClassAdapter filter1,
-        final ClassAdapter filter2) throws Exception
     {
         if (!Arrays.equals(cr1.b, cr2.b)) {
             StringWriter sw1 = new StringWriter();
             StringWriter sw2 = new StringWriter();
             ClassVisitor cv1 = new TraceClassVisitor(new PrintWriter(sw1));
             ClassVisitor cv2 = new TraceClassVisitor(new PrintWriter(sw2));
-            if (filter1 != null) {
-                filter1.cv = cv1;
-            }
-            if (filter2 != null) {
-                filter2.cv = cv2;
-            }
-            cr1.accept(filter1 == null ? cv1 : filter1, 0);
-            cr2.accept(filter2 == null ? cv2 : filter2, 0);
+            cr1.accept(new ClassFilter(cv1), false);
+            cr2.accept(new ClassFilter(cv2), false);
             String s1 = sw1.toString();
             String s2 = sw2.toString();
             assertEquals("different data", s1, s2);
@@ -163,5 +136,81 @@ public abstract class AbstractTest extends TestCase {
 
     public String getName() {
         return super.getName() + ": " + n;
+    }
+
+    // -------------------------------------------------------------------------
+
+    static class ClassFilter extends ClassAdapter {
+
+        public ClassFilter(final ClassVisitor cv) {
+            super(cv);
+        }
+
+        public void visitAttribute(final Attribute attr) {
+            // remove unknown attributes
+        }
+
+        public FieldVisitor visitField(
+            final int access,
+            final String name,
+            final String desc,
+            final String signature,
+            final Object value)
+        {
+            return new FieldFilter(cv.visitField(access,
+                    name,
+                    desc,
+                    signature,
+                    value));
+        }
+
+        public MethodVisitor visitMethod(
+            final int access,
+            final String name,
+            final String desc,
+            final String signature,
+            final String[] exceptions)
+        {
+            return new MethodFilter(cv.visitMethod(access,
+                    name,
+                    desc,
+                    signature,
+                    exceptions));
+        }
+    }
+
+    static class MethodFilter extends MethodAdapter {
+
+        public MethodFilter(final MethodVisitor mv) {
+            super(mv);
+        }
+
+        public void visitAttribute(final Attribute attr) {
+            // remove unknown attributes
+        }
+    }
+
+    static class FieldFilter implements FieldVisitor {
+
+        FieldVisitor fv;
+
+        public FieldFilter(final FieldVisitor fv) {
+            this.fv = fv;
+        }
+
+        public AnnotationVisitor visitAnnotation(
+            final String desc,
+            final boolean visible)
+        {
+            return fv.visitAnnotation(desc, visible);
+        }
+
+        public void visitAttribute(final Attribute attr) {
+            // remove unknown attributes
+        }
+
+        public void visitEnd() {
+            fv.visitEnd();
+        }
     }
 }

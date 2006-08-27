@@ -30,6 +30,7 @@
 package org.objectweb.asm.tree;
 
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Label;
 
 /**
  * A node that represents a local variable declaration.
@@ -57,13 +58,13 @@ public class LocalVariableNode {
      * The first instruction corresponding to the scope of this local variable
      * (inclusive).
      */
-    public LabelNode start;
+    public Label start;
 
     /**
      * The last instruction corresponding to the scope of this local variable
      * (exclusive).
      */
-    public LabelNode end;
+    public Label end;
 
     /**
      * The local variable's index.
@@ -87,8 +88,8 @@ public class LocalVariableNode {
         final String name,
         final String desc,
         final String signature,
-        final LabelNode start,
-        final LabelNode end,
+        final Label start,
+        final Label end,
         final int index)
     {
         this.name = name;
@@ -105,11 +106,6 @@ public class LocalVariableNode {
      * @param mv a method visitor.
      */
     public void accept(final MethodVisitor mv) {
-        mv.visitLocalVariable(name,
-                desc,
-                signature,
-                start.getLabel(),
-                end.getLabel(),
-                index);
+        mv.visitLocalVariable(name, desc, signature, start, end, index);
     }
 }

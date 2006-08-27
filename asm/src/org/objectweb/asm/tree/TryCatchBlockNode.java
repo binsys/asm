@@ -29,6 +29,7 @@
  */
 package org.objectweb.asm.tree;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 /**
@@ -41,17 +42,17 @@ public class TryCatchBlockNode {
     /**
      * Beginning of the exception handler's scope (inclusive).
      */
-    public LabelNode start;
+    public Label start;
 
     /**
      * End of the exception handler's scope (exclusive).
      */
-    public LabelNode end;
+    public Label end;
 
     /**
      * Beginning of the exception handler's code.
      */
-    public LabelNode handler;
+    public Label handler;
 
     /**
      * Internal name of the type of exceptions handled by the handler. May be
@@ -70,9 +71,9 @@ public class TryCatchBlockNode {
      *        blocks).
      */
     public TryCatchBlockNode(
-        final LabelNode start,
-        final LabelNode end,
-        final LabelNode handler,
+        final Label start,
+        final Label end,
+        final Label handler,
         final String type)
     {
         this.start = start;
@@ -87,8 +88,6 @@ public class TryCatchBlockNode {
      * @param mv a method visitor.
      */
     public void accept(final MethodVisitor mv) {
-        mv.visitTryCatchBlock(start.getLabel(), end.getLabel(), handler == null
-                ? null
-                : handler.getLabel(), type);
+        mv.visitTryCatchBlock(start, end, handler, type);
     }
 }

@@ -52,12 +52,14 @@ public class BasicVerifierTest extends AbstractTest {
     public void test() throws Exception {
         ClassReader cr = new ClassReader(is);
         ClassNode cn = new ClassNode();
-        cr.accept(cn, 0);
+        cr.accept(cn, false);
         List methods = cn.methods;
         for (int i = 0; i < methods.size(); ++i) {
             MethodNode method = (MethodNode) methods.get(i);
-            Analyzer a = new Analyzer(new BasicVerifier());
-            a.analyze(cn.name, method);
+            if (method.instructions.size() > 0) {
+                Analyzer a = new Analyzer(new BasicVerifier());
+                a.analyze(cn.name, method);
+            }
         }
     }
 }

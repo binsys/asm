@@ -29,8 +29,6 @@
  */
 package org.objectweb.asm.tree;
 
-import java.util.Map;
-
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -60,15 +58,11 @@ public class LdcInsnNode extends AbstractInsnNode {
         this.cst = cst;
     }
 
-    public int getType() {
-        return LDC_INSN;
-    }
-
     public void accept(final MethodVisitor mv) {
         mv.visitLdcInsn(cst);
     }
 
-    public AbstractInsnNode clone(final Map labels) {
-        return new LdcInsnNode(cst);
+    public int getType() {
+        return LDC_INSN;
     }
 }

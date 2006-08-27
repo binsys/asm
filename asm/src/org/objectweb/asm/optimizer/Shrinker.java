@@ -71,22 +71,22 @@ public class Shrinker {
         } else if (f.getName().endsWith(".class")) {
             ConstantPool cp = new ConstantPool();
             ClassReader cr = new ClassReader(new FileInputStream(f));
-            ClassWriter cw = new ClassWriter(0);
+            ClassWriter cw = new ClassWriter(false);
             ClassConstantsCollector ccc = new ClassConstantsCollector(cw, cp);
             ClassOptimizer co = new ClassOptimizer(ccc, mapping);
-            cr.accept(co, ClassReader.SKIP_DEBUG);
+            cr.accept(co, true);
 
             Set constants = new TreeSet(new ConstantComparator());
             constants.addAll(cp.values());
 
             cr = new ClassReader(cw.toByteArray());
-            cw = new ClassWriter(0);
+            cw = new ClassWriter(false);
             Iterator i = constants.iterator();
             while (i.hasNext()) {
                 Constant c = (Constant) i.next();
                 c.write(cw);
             }
-            cr.accept(cw, ClassReader.SKIP_DEBUG);
+            cr.accept(cw, true);
 
             String n = mapping.map(co.getClassName());
             File g = new File(d, n + ".class");
@@ -138,7 +138,7 @@ public class Shrinker {
             return d;
         }
 
-        private int getSort(final Constant c) {
+        private int getSort(Constant c) {
             switch (c.type) {
                 case 'I':
                     return 0;

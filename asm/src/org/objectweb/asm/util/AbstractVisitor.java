@@ -34,6 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.objectweb.asm.Attribute;
+import org.objectweb.asm.util.attrs.ASMStackMapAttribute;
+import org.objectweb.asm.util.attrs.ASMStackMapTableAttribute;
 
 /**
  * An abstract visitor.
@@ -188,6 +190,12 @@ public abstract class AbstractVisitor {
      * @return the default {@link ASMifiable} prototypes.
      */
     public static Attribute[] getDefaultAttributes() {
-        return new Attribute[0];
+        try {
+            return new Attribute[] {
+                new ASMStackMapAttribute(),
+                new ASMStackMapTableAttribute() };
+        } catch (Exception e) {
+            return new Attribute[0];
+        }
     }
 }

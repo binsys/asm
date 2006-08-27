@@ -70,7 +70,7 @@ public class SignatureWriter implements SignatureVisitor {
     // Implementation of the SignatureVisitor interface
     // ------------------------------------------------------------------------
 
-    public void visitFormalTypeParameter(final String name) {
+    public void visitFormalTypeParameter(String name) {
         if (!hasFormals) {
             hasFormals = true;
             buf.append('<');
@@ -120,11 +120,11 @@ public class SignatureWriter implements SignatureVisitor {
         return this;
     }
 
-    public void visitBaseType(final char descriptor) {
+    public void visitBaseType(char descriptor) {
         buf.append(descriptor);
     }
 
-    public void visitTypeVariable(final String name) {
+    public void visitTypeVariable(String name) {
         buf.append('T');
         buf.append(name);
         buf.append(';');
@@ -135,13 +135,13 @@ public class SignatureWriter implements SignatureVisitor {
         return this;
     }
 
-    public void visitClassType(final String name) {
+    public void visitClassType(String name) {
         buf.append('L');
         buf.append(name);
         argumentStack *= 2;
     }
 
-    public void visitInnerClassType(final String name) {
+    public void visitInnerClassType(String name) {
         endArguments();
         buf.append('.');
         buf.append(name);
@@ -156,7 +156,7 @@ public class SignatureWriter implements SignatureVisitor {
         buf.append('*');
     }
 
-    public SignatureVisitor visitTypeArgument(final char wildcard) {
+    public SignatureVisitor visitTypeArgument(char wildcard) {
         if (argumentStack % 2 == 0) {
             ++argumentStack;
             buf.append('<');

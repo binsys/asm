@@ -29,17 +29,15 @@
  */
 package org.objectweb.asm.tree;
 
-import java.util.Map;
-
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 /**
- * A node that represents a line number declaration. These nodes are pseudo
- * instruction nodes in order to be inserted in an instruction list.
+ * A node that represents a line number declaration.
  * 
  * @author Eric Bruneton
  */
-public class LineNumberNode extends AbstractInsnNode {
+public class LineNumberNode {
 
     /**
      * A line number. This number refers to the source file from which the class
@@ -50,7 +48,7 @@ public class LineNumberNode extends AbstractInsnNode {
     /**
      * The first instruction corresponding to this line number.
      */
-    public LabelNode start;
+    public Label start;
 
     /**
      * Constructs a new {@link LineNumberNode}.
@@ -59,21 +57,17 @@ public class LineNumberNode extends AbstractInsnNode {
      *        which the class was compiled.
      * @param start the first instruction corresponding to this line number.
      */
-    public LineNumberNode(final int line, final LabelNode start) {
-        super(-1);
+    public LineNumberNode(final int line, final Label start) {
         this.line = line;
         this.start = start;
     }
 
-    public int getType() {
-        return LINE;
-    }
-
+    /**
+     * Makes the given visitor visit this line number declaration.
+     * 
+     * @param mv a method visitor.
+     */
     public void accept(final MethodVisitor mv) {
-        mv.visitLineNumber(line, start.getLabel());
-    }
-
-    public AbstractInsnNode clone(final Map labels) {
-        return new LineNumberNode(line, clone(start, labels));
+        mv.visitLineNumber(line, start);
     }
 }

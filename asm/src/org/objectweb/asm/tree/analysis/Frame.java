@@ -156,6 +156,9 @@ public class Frame {
      *         exist.
      */
     public Value getStack(final int i) throws IndexOutOfBoundsException {
+        if (i >= top) {
+            throw new IndexOutOfBoundsException("Trying to access an inexistant stack element");
+        }
         return values[i + locals];
     }
 
@@ -655,12 +658,12 @@ public class Frame {
      */
     public String toString() {
         StringBuffer b = new StringBuffer();
-        for (int i = 0; i < getLocals(); ++i) {
-            b.append(getLocal(i));
+        for (int i = 0; i < locals; ++i) {
+            b.append(values[i]).append(' ');
         }
         b.append(' ');
-        for (int i = 0; i < getStackSize(); ++i) {
-            b.append(getStack(i).toString());
+        for (int i = 0; i < top; ++i) {
+            b.append(values[i + locals].toString()).append(' ');
         }
         return b.toString();
     }

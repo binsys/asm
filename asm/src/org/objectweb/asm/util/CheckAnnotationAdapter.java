@@ -49,7 +49,10 @@ public class CheckAnnotationAdapter implements AnnotationVisitor {
         this(av, true);
     }
 
-    CheckAnnotationAdapter(final AnnotationVisitor av, final boolean named) {
+    CheckAnnotationAdapter(
+        final AnnotationVisitor av,
+        final boolean named)
+    {
         this.av = av;
         this.named = named;
     }

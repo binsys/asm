@@ -111,7 +111,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
      * @associates org.objectweb.asm.tree.AbstractInsnNode
      * @label instructions
      */
-    public InsnList instructions;
+    public List instructions;
 
     /**
      * The try catch blocks of this method. This list is a list of
@@ -138,6 +138,14 @@ public class MethodNode extends MemberNode implements MethodVisitor {
      * @associates org.objectweb.asm.tree.LocalVariableNode
      */
     public List localVariables;
+
+    /**
+     * The line numbers of this method. This list is a list of
+     * {@link LineNumberNode} objects. May be <tt>null</tt>
+     * 
+     * @associates org.objectweb.asm.tree.LineNumberNode
+     */
+    public List lineNumbers;
 
     /**
      * Constructs a new {@link MethodNode}.
@@ -167,9 +175,10 @@ public class MethodNode extends MemberNode implements MethodVisitor {
                 ? 0
                 : exceptions.length);
         boolean isAbstract = (access & Opcodes.ACC_ABSTRACT) != 0;
-        this.instructions = new InsnList();
+        this.instructions = new ArrayList(isAbstract ? 0 : 24);
         if (!isAbstract) {
             this.localVariables = new ArrayList(5);
+            this.lineNumbers = new ArrayList(5);
         }
         this.tryCatchBlocks = new ArrayList();
         if (exceptions != null) {
@@ -183,7 +192,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
 
     public AnnotationVisitor visitAnnotationDefault() {
         return new AnnotationNode(new ArrayList(0) {
-            public boolean add(final Object o) {
+            public boolean add(Object o) {
                 annotationDefault = o;
                 return super.add(o);
             }
@@ -221,20 +230,6 @@ public class MethodNode extends MemberNode implements MethodVisitor {
     public void visitCode() {
     }
 
-    public void visitFrame(
-        final int type,
-        final int nLocal,
-        final Object[] local,
-        final int nStack,
-        final Object[] stack)
-    {
-        instructions.add(new FrameNode(type, nLocal, local == null
-                ? null
-                : labelNodes(local), nStack, stack == null
-                ? null
-                : labelNodes(stack)));
-    }
-
     public void visitInsn(final int opcode) {
         instructions.add(new InsnNode(opcode));
     }
@@ -270,11 +265,11 @@ public class MethodNode extends MemberNode implements MethodVisitor {
     }
 
     public void visitJumpInsn(final int opcode, final Label label) {
-        instructions.add(new JumpInsnNode(opcode, labelNode(label)));
+        instructions.add(new JumpInsnNode(opcode, label));
     }
 
     public void visitLabel(final Label label) {
-        instructions.add(labelNode(label));
+        instructions.add(new LabelNode(label));
     }
 
     public void visitLdcInsn(final Object cst) {
@@ -291,10 +286,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
         final Label dflt,
         final Label[] labels)
     {
-        instructions.add(new TableSwitchInsnNode(min,
-                max,
-                labelNode(dflt),
-                labelNodes(labels)));
+        instructions.add(new TableSwitchInsnNode(min, max, dflt, labels));
     }
 
     public void visitLookupSwitchInsn(
@@ -302,9 +294,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
         final int[] keys,
         final Label[] labels)
     {
-        instructions.add(new LookupSwitchInsnNode(labelNode(dflt),
-                keys,
-                labelNodes(labels)));
+        instructions.add(new LookupSwitchInsnNode(dflt, keys, labels));
     }
 
     public void visitMultiANewArrayInsn(final String desc, final int dims) {
@@ -317,10 +307,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
         final Label handler,
         final String type)
     {
-        tryCatchBlocks.add(new TryCatchBlockNode(labelNode(start),
-                labelNode(end),
-                labelNode(handler),
-                type));
+        tryCatchBlocks.add(new TryCatchBlockNode(start, end, handler, type));
     }
 
     public void visitLocalVariable(
@@ -334,45 +321,18 @@ public class MethodNode extends MemberNode implements MethodVisitor {
         localVariables.add(new LocalVariableNode(name,
                 desc,
                 signature,
-                labelNode(start),
-                labelNode(end),
+                start,
+                end,
                 index));
     }
 
     public void visitLineNumber(final int line, final Label start) {
-        instructions.add(new LineNumberNode(line, labelNode(start)));
+        lineNumbers.add(new LineNumberNode(line, start));
     }
 
     public void visitMaxs(final int maxStack, final int maxLocals) {
         this.maxStack = maxStack;
         this.maxLocals = maxLocals;
-    }
-
-    private static LabelNode labelNode(final Label l) {
-        if (l.info == null) {
-            l.info = new LabelNode(l);
-        }
-        return (LabelNode) l.info;
-    }
-
-    private static LabelNode[] labelNodes(final Label[] l) {
-        LabelNode[] nodes = new LabelNode[l.length];
-        for (int i = 0; i < l.length; ++i) {
-            nodes[i] = labelNode(l[i]);
-        }
-        return nodes;
-    }
-
-    private static Object[] labelNodes(final Object[] objs) {
-        Object[] nodes = new Object[objs.length];
-        for (int i = 0; i < objs.length; ++i) {
-            Object o = objs[i];
-            if (o instanceof Label) {
-                o = labelNode((Label) o);
-            }
-            nodes[i] = o;
-        }
-        return nodes;
     }
 
     // ------------------------------------------------------------------------
@@ -396,7 +356,7 @@ public class MethodNode extends MemberNode implements MethodVisitor {
             accept(mv);
         }
     }
-
+    
     /**
      * Makes the given method visitor visit this method.
      * 
@@ -458,11 +418,18 @@ public class MethodNode extends MemberNode implements MethodVisitor {
                 ((TryCatchBlockNode) tryCatchBlocks.get(i)).accept(mv);
             }
             // visits instructions
-            instructions.accept(mv);
+            for (i = 0; i < instructions.size(); ++i) {
+                ((AbstractInsnNode) instructions.get(i)).accept(mv);
+            }
             // visits local variables
             n = localVariables == null ? 0 : localVariables.size();
             for (i = 0; i < n; ++i) {
                 ((LocalVariableNode) localVariables.get(i)).accept(mv);
+            }
+            // visits line numbers
+            n = lineNumbers == null ? 0 : lineNumbers.size();
+            for (i = 0; i < n; ++i) {
+                ((LineNumberNode) lineNumbers.get(i)).accept(mv);
             }
             // visits maxs
             mv.visitMaxs(maxStack, maxLocals);

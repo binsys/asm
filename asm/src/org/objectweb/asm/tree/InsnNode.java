@@ -29,8 +29,6 @@
  */
 package org.objectweb.asm.tree;
 
-import java.util.Map;
-
 import org.objectweb.asm.MethodVisitor;
 
 /**
@@ -47,6 +45,18 @@ public class InsnNode extends AbstractInsnNode {
         for (int i = 0; i < INSNS.length; ++i) {
             INSNS[i] = new InsnNode(i);
         }
+    }
+
+    /**
+     * Returns the {@link InsnNode} corresponding to the given opcode.
+     * 
+     * @deprecated uses the constructor instead.
+     * 
+     * @param opcode an instruction opcode.
+     * @return the {@link InsnNode} corresponding to the given opcode.
+     */
+    public final static InsnNode getByOpcode(final int opcode) {
+        return INSNS[opcode];
     }
 
     /**
@@ -71,10 +81,6 @@ public class InsnNode extends AbstractInsnNode {
         super(opcode);
     }
 
-    public int getType() {
-        return INSN;
-    }
-
     /**
      * Makes the given visitor visit this instruction.
      * 
@@ -84,7 +90,7 @@ public class InsnNode extends AbstractInsnNode {
         mv.visitInsn(opcode);
     }
 
-    public AbstractInsnNode clone(final Map labels) {
-        return new InsnNode(opcode);
+    public int getType() {
+        return INSN;
     }
 }

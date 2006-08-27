@@ -1,12 +1,6 @@
 <project name="conform" default="test">
 
   <target name="test">
-    <condition property="testclasses" value="${asm.test.class}">
-      <not><equals arg1="${asm.test.class}" arg2=""/></not>
-    </condition>
-    <condition property="testclasses" value="java.lang">
-      <equals arg1="${asm.test.class}" arg2=""/>
-    </condition>
     <junit fork="yes" 
            printsummary="yes"
            errorproperty="test.failed"
@@ -19,7 +13,7 @@
       <formatter type="xml"/>
       <classpath refid="test.classpath"/>
       <jvmarg value="-Dasm.test=${asm.test}"/>
-      <jvmarg value="-Dasm.test.class=${testclasses}"/>
+      <jvmarg value="-Dasm.test.class=${asm.test.class}"/>
     </junit>  
   </target>
 

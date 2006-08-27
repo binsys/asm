@@ -57,7 +57,7 @@ public class XMLPerfTest {
         "linenumbers.xsl",
         "profile.xsl", };
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
         System.err.println("Comparing XSLT performance for ASM XSLT");
         System.err.println("This may take 20 to 30 minutes\n");
 
@@ -85,9 +85,7 @@ public class XMLPerfTest {
 
     }
 
-    private static void process(final String name, final String engine)
-            throws Exception
-    {
+    private static void process(String name, String engine) throws Exception {
         System.setProperty("javax.xml.transform.TransformerFactory", engine);
         processRep(name, Processor.BYTECODE);
         processRep(name, Processor.MULTI_XML);
@@ -116,7 +114,7 @@ public class XMLPerfTest {
     // return bos.toByteArray();
     // }
 
-    private static void processRep(final String name, final int outRep) {
+    private static void processRep(String name, int outRep) {
         long l1 = System.currentTimeMillis();
         int n = 0;
         try {
@@ -147,7 +145,7 @@ public class XMLPerfTest {
 
         System.err.println();
         System.err.println("  " + outRep + " " + name + "  " + (l2 - l1)
-                + "ms  " + 1000f * n / (l2 - l1));
+                + "ms  " + (1000f * n / (l2 - l1)));
 
         // SAXTransformerFactory saxtf = (SAXTransformerFactory)
         // TransformerFactory.newInstance();
@@ -168,20 +166,20 @@ public class XMLPerfTest {
         private int n = 0;
 
         public DotObserver(
-            final int inRepresenation,
-            final int outRepresentation,
-            final InputStream input,
-            final OutputStream output,
-            final Source xslt)
+            int inRepresenation,
+            int outRepresentation,
+            InputStream input,
+            OutputStream output,
+            Source xslt)
         {
             super(inRepresenation, outRepresentation, input, output, xslt);
         }
 
-        public void update(final Object arg) {
+        public void update(Object arg) {
             n++;
-            if (n % 1000 == 0) {
-                System.err.print("" + n / 1000);
-            } else if (n % 100 == 0) {
+            if ((n % 1000) == 0) {
+                System.err.print("" + (n / 1000));
+            } else if ((n % 100) == 0) {
                 System.err.print(".");
             }
         }
@@ -189,15 +187,13 @@ public class XMLPerfTest {
 
     private static final class IgnoringOutputStream extends OutputStream {
 
-        public final void write(final int b) throws IOException {
+        public final void write(int b) throws IOException {
         }
 
-        public final void write(final byte[] b) throws IOException {
+        public final void write(byte[] b) throws IOException {
         }
 
-        public final void write(final byte[] b, final int off, final int len)
-                throws IOException
-        {
+        public final void write(byte[] b, int off, int len) throws IOException {
         }
     }
 }

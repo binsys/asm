@@ -38,8 +38,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 
 /**
- * LocalVariableSorter tests.
- * 
  * @author Eric Bruneton
  */
 public class LocalVariablesSorterTest extends AbstractTest {
@@ -52,14 +50,14 @@ public class LocalVariablesSorterTest extends AbstractTest {
 
     public void test() throws Exception {
         ClassReader cr = new ClassReader(is);
-        ClassWriter cw = new ClassWriter(0);
+        ClassWriter cw = new ClassWriter(true, true);
         cr.accept(new ClassAdapter(cw) {
             public MethodVisitor visitMethod(
-                final int access,
-                final String name,
-                final String desc,
-                final String signature,
-                final String[] exceptions)
+                int access,
+                String name,
+                String desc,
+                String signature,
+                String[] exceptions)
             {
                 return new LocalVariablesSorter(access,
                         desc,
@@ -69,7 +67,7 @@ public class LocalVariablesSorterTest extends AbstractTest {
                                 signature,
                                 exceptions));
             }
-        }, ClassReader.EXPAND_FRAMES);
+        }, false);
         byte[] b = cw.toByteArray();
         try {
             LOADER.defineClass(n, b);

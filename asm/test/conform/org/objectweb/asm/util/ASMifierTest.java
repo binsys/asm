@@ -46,10 +46,7 @@ import org.codehaus.janino.Scanner;
 import org.codehaus.janino.UnitCompiler;
 
 import org.objectweb.asm.AbstractTest;
-import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.attrs.CodeComment;
-import org.objectweb.asm.attrs.Comment;
 import org.objectweb.asm.util.ASMifierClassVisitor;
 
 /**
@@ -77,7 +74,7 @@ public class ASMifierTest extends AbstractTest {
 
         StringWriter sw = new StringWriter();
         ASMifierClassVisitor cv = new ASMifierClassVisitor(new PrintWriter(sw));
-        cr.accept(cv, new Attribute[] { new Comment(), new CodeComment() }, 0);
+        cr.accept(cv, false);
 
         String generated = sw.toString();
 
@@ -90,12 +87,7 @@ public class ASMifierTest extends AbstractTest {
             throw ex;
         }
 
-        String nd = n + "Dump";
-        if (n.indexOf('.') != -1) {
-            nd = "asm." + nd;
-        }
-
-        Class c = LOADER.defineClass(nd, generatorClassData);
+        Class c = LOADER.defineClass("asm." + n + "Dump", generatorClassData);
         Method m = c.getMethod("dump", new Class[0]);
         byte[] b = (byte[]) m.invoke(null, new Object[0]);
 
@@ -113,9 +105,7 @@ public class ASMifierTest extends AbstractTest {
 
         final static IClassLoader CL = new ClassLoaderIClassLoader(new URLClassLoader(new URL[0]));
 
-        public byte[] compile(final String name, final String source)
-                throws Exception
-        {
+        public byte[] compile(String name, String source) throws Exception {
             Parser p = new Parser(new Scanner(name, new StringReader(source)));
             UnitCompiler uc = new UnitCompiler(p.parseCompilationUnit(), CL);
             return uc.compileUnit(DebuggingInformation.ALL)[0].toByteArray();

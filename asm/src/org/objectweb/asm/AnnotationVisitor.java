@@ -46,10 +46,7 @@ public interface AnnotationVisitor {
      * @param value the actual value, whose type must be {@link Byte},
      *        {@link Boolean}, {@link Character}, {@link Short},
      *        {@link Integer}, {@link Long}, {@link Float}, {@link Double},
-     *        {@link String} or {@link Type}. This value can also be an array
-     *        of byte, boolean, short, char, int, long, float or double values
-     *        (this is equivalent to using {@link #visitArray visitArray} and
-     *        visiting each array element in turn, but is more convenient).
+     *        {@link String} or {@link Type}.
      */
     void visit(String name, Object value);
 
@@ -74,10 +71,7 @@ public interface AnnotationVisitor {
     AnnotationVisitor visitAnnotation(String name, String desc);
 
     /**
-     * Visits an array value of the annotation. Note that arrays of primitive
-     * types (such as byte, boolean, short, char, int, long, float or double)
-     * can be passed as value to {@link #visit visit}. This is what
-     * {@link ClassReader} does.
+     * Visits an array value of the annotation.
      * 
      * @param name the value name.
      * @return a non null visitor to visit the actual array value elements. The

@@ -39,7 +39,7 @@ import java.io.FileOutputStream;
  */
 public class Compile extends ClassLoader {
 
-    public static void main(final String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
         // creates the expression tree corresponding to
         // exp(i) = i > 3 && 6 > i
         Exp exp = new And(new GT(new Var(0), new Cst(3)), new GT(new Cst(6),
@@ -72,10 +72,10 @@ abstract class Exp implements Opcodes {
      * Returns the byte code of an Expression class corresponding to this
      * expression.
      */
-    byte[] compile(final String name) {
+    byte[] compile(String name) {
         // class header
         String[] itfs = { Expression.class.getName() };
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        ClassWriter cw = new ClassWriter(true);
         cw.visit(V1_1, ACC_PUBLIC, name, null, "java/lang/Object", itfs);
 
         // default public constructor
@@ -116,11 +116,11 @@ class Cst extends Exp {
 
     int value;
 
-    Cst(final int value) {
+    Cst(int value) {
         this.value = value;
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // pushes the constant's value onto the stack
         mv.visitLdcInsn(new Integer(value));
     }
@@ -133,11 +133,11 @@ class Var extends Exp {
 
     int index;
 
-    Var(final int index) {
+    Var(int index) {
         this.index = index + 1;
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // pushes the 'index' local variable onto the stack
         mv.visitVarInsn(ILOAD, index);
     }
@@ -152,7 +152,7 @@ abstract class BinaryExp extends Exp {
 
     Exp e2;
 
-    BinaryExp(final Exp e1, final Exp e2) {
+    BinaryExp(Exp e1, Exp e2) {
         this.e1 = e1;
         this.e2 = e2;
     }
@@ -163,11 +163,11 @@ abstract class BinaryExp extends Exp {
  */
 class Add extends BinaryExp {
 
-    Add(final Exp e1, final Exp e2) {
+    Add(Exp e1, Exp e2) {
         super(e1, e2);
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // compiles e1, e2, and adds an instruction to add the two values
         e1.compile(mv);
         e2.compile(mv);
@@ -180,11 +180,11 @@ class Add extends BinaryExp {
  */
 class Mul extends BinaryExp {
 
-    Mul(final Exp e1, final Exp e2) {
+    Mul(Exp e1, Exp e2) {
         super(e1, e2);
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // compiles e1, e2, and adds an instruction to multiply the two values
         e1.compile(mv);
         e2.compile(mv);
@@ -197,11 +197,11 @@ class Mul extends BinaryExp {
  */
 class GT extends BinaryExp {
 
-    GT(final Exp e1, final Exp e2) {
+    GT(Exp e1, Exp e2) {
         super(e1, e2);
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // compiles e1, e2, and adds the instructions to compare the two values
         e1.compile(mv);
         e2.compile(mv);
@@ -223,11 +223,11 @@ class GT extends BinaryExp {
  */
 class And extends BinaryExp {
 
-    And(final Exp e1, final Exp e2) {
+    And(Exp e1, Exp e2) {
         super(e1, e2);
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // compiles e1
         e1.compile(mv);
         // tests if e1 is false
@@ -248,11 +248,11 @@ class And extends BinaryExp {
  */
 class Or extends BinaryExp {
 
-    Or(final Exp e1, final Exp e2) {
+    Or(Exp e1, Exp e2) {
         super(e1, e2);
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // compiles e1
         e1.compile(mv);
         // tests if e1 is true
@@ -275,11 +275,11 @@ class Not extends Exp {
 
     Exp e;
 
-    Not(final Exp e) {
+    Not(Exp e) {
         this.e = e;
     }
 
-    void compile(final MethodVisitor mv) {
+    void compile(MethodVisitor mv) {
         // computes !e1 by evaluating 1 - e1
         mv.visitLdcInsn(new Integer(1));
         e.compile(mv);

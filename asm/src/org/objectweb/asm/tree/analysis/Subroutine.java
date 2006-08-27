@@ -32,8 +32,8 @@ package org.objectweb.asm.tree.analysis;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.tree.JumpInsnNode;
-import org.objectweb.asm.tree.LabelNode;
 
 /**
  * A method subroutine (corresponds to a JSR instruction).
@@ -42,7 +42,7 @@ import org.objectweb.asm.tree.LabelNode;
  */
 class Subroutine {
 
-    LabelNode start;
+    Label start;
 
     boolean[] access;
 
@@ -52,7 +52,7 @@ class Subroutine {
     }
 
     public Subroutine(
-        final LabelNode start,
+        final Label start,
         final int maxLocals,
         final JumpInsnNode caller)
     {
@@ -71,7 +71,12 @@ class Subroutine {
         return result;
     }
 
-    public boolean merge(final Subroutine subroutine) throws AnalyzerException {
+    public boolean merge(final Subroutine subroutine, boolean checkOverlap)
+            throws AnalyzerException
+    {
+        if (checkOverlap && subroutine.start != start) {
+            throw new AnalyzerException("Overlapping sub routines");
+        }
         boolean changes = false;
         for (int i = 0; i < access.length; ++i) {
             if (subroutine.access[i] && !access[i]) {
@@ -79,13 +84,11 @@ class Subroutine {
                 changes = true;
             }
         }
-        if (subroutine.start == start) {
-            for (int i = 0; i < subroutine.callers.size(); ++i) {
-                Object caller = subroutine.callers.get(i);
-                if (!callers.contains(caller)) {
-                    callers.add(caller);
-                    changes = true;
-                }
+        for (int i = 0; i < subroutine.callers.size(); ++i) {
+            Object caller = subroutine.callers.get(i);
+            if (!callers.contains(caller)) {
+                callers.add(caller);
+                changes = true;
             }
         }
         return changes;

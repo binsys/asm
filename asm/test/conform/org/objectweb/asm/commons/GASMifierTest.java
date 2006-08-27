@@ -47,14 +47,10 @@ import org.codehaus.janino.Scanner;
 import org.codehaus.janino.UnitCompiler;
 
 import org.objectweb.asm.AbstractTest;
-import org.objectweb.asm.Attribute;
 import org.objectweb.asm.ClassAdapter;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.MethodAdapter;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.attrs.CodeComment;
-import org.objectweb.asm.attrs.Comment;
 
 /**
  * GASMifier tests.
@@ -81,9 +77,7 @@ public class GASMifierTest extends AbstractTest {
 
         StringWriter sw = new StringWriter();
         GASMifierClassVisitor cv = new GASMifierClassVisitor(new PrintWriter(sw));
-        cr.accept(cv,
-                new Attribute[] { new Comment(), new CodeComment() },
-                ClassReader.EXPAND_FRAMES);
+        cr.accept(cv, false);
 
         String generated = sw.toString();
 
@@ -95,14 +89,14 @@ public class GASMifierTest extends AbstractTest {
             throw ex;
         }
 
-        ClassWriter cw = new ClassWriter(0);
+        ClassWriter cw = new ClassWriter(true);
         cr.accept(new ClassAdapter(cw) {
             public MethodVisitor visitMethod(
-                final int access,
-                final String name,
-                final String desc,
-                final String signature,
-                final String[] exceptions)
+                int access,
+                String name,
+                String desc,
+                String signature,
+                String[] exceptions)
             {
                 return new LocalVariablesSorter(access,
                         desc,
@@ -112,17 +106,10 @@ public class GASMifierTest extends AbstractTest {
                                 signature,
                                 exceptions));
             }
-        },
-                new Attribute[] { new Comment(), new CodeComment() },
-                ClassReader.EXPAND_FRAMES);
+        }, false);
         cr = new ClassReader(cw.toByteArray());
 
-        String nd = n + "Dump";
-        if (n.indexOf('.') != -1) {
-            nd = "asm." + nd;
-        }
-
-        Class c = LOADER.defineClass(nd, generatorClassData);
+        Class c = LOADER.defineClass("asm." + n + "Dump", generatorClassData);
         Method m = c.getMethod("dump", new Class[0]);
         byte[] b;
         try {
@@ -133,14 +120,14 @@ public class GASMifierTest extends AbstractTest {
         }
 
         try {
-            assertEquals(cr, new ClassReader(b), new Filter(), new Filter());
+            assertEquals(cr, new ClassReader(b));
         } catch (Throwable e) {
             trace(generated);
-            assertEquals(cr, new ClassReader(b), new Filter(), new Filter());
+            assertEquals(cr, new ClassReader(b));
         }
     }
 
-    private void trace(final String generated) {
+    private void trace(String generated) {
         if (System.getProperty("asm.test.class") != null) {
             System.err.println(generated);
         }
@@ -157,38 +144,10 @@ public class GASMifierTest extends AbstractTest {
 
         final static IClassLoader CL = new ClassLoaderIClassLoader(new URLClassLoader(new URL[0]));
 
-        public byte[] compile(final String name, final String source)
-                throws Exception
-        {
+        public byte[] compile(String name, String source) throws Exception {
             Parser p = new Parser(new Scanner(name, new StringReader(source)));
             UnitCompiler uc = new UnitCompiler(p.parseCompilationUnit(), CL);
             return uc.compileUnit(DebuggingInformation.ALL)[0].toByteArray();
-        }
-    }
-
-    private static class Filter extends ClassAdapter {
-
-        public Filter() {
-            super(null);
-        }
-
-        public MethodVisitor visitMethod(
-            final int access,
-            final String name,
-            final String desc,
-            final String signature,
-            final String[] exceptions)
-        {
-            return new MethodAdapter(super.visitMethod(access,
-                    name,
-                    desc,
-                    signature,
-                    exceptions))
-            {
-                public void visitMaxs(final int maxStack, final int maxLocals) {
-                    super.visitMaxs(0, 0);
-                }
-            };
         }
     }
 }

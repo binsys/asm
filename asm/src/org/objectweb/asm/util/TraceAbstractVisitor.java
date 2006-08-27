@@ -31,6 +31,7 @@ package org.objectweb.asm.util;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
+import org.objectweb.asm.util.attrs.Traceable;
 
 /**
  * An abstract trace visitor.
@@ -134,7 +135,7 @@ public abstract class TraceAbstractVisitor extends AbstractVisitor {
         if (attr instanceof Traceable) {
             ((Traceable) attr).trace(buf, null);
         } else {
-            buf.append(" : unknown\n");
+            buf.append(" : ").append(attr.toString()).append("\n");
         }
 
         text.add(buf.toString());

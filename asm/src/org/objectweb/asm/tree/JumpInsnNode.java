@@ -29,8 +29,7 @@
  */
 package org.objectweb.asm.tree;
 
-import java.util.Map;
-
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 
 /**
@@ -45,7 +44,7 @@ public class JumpInsnNode extends AbstractInsnNode {
      * The operand of this instruction. This operand is a label that designates
      * the instruction to which this instruction may jump.
      */
-    public LabelNode label;
+    public Label label;
 
     /**
      * Constructs a new {@link JumpInsnNode}.
@@ -58,7 +57,7 @@ public class JumpInsnNode extends AbstractInsnNode {
      *        operand is a label that designates the instruction to which the
      *        jump instruction may jump.
      */
-    public JumpInsnNode(final int opcode, final LabelNode label) {
+    public JumpInsnNode(final int opcode, final Label label) {
         super(opcode);
         this.label = label;
     }
@@ -75,15 +74,11 @@ public class JumpInsnNode extends AbstractInsnNode {
         this.opcode = opcode;
     }
 
+    public void accept(final MethodVisitor mv) {
+        mv.visitJumpInsn(opcode, label);
+    }
+
     public int getType() {
         return JUMP_INSN;
-    }
-
-    public void accept(final MethodVisitor mv) {
-        mv.visitJumpInsn(opcode, label.getLabel());
-    }
-
-    public AbstractInsnNode clone(final Map labels) {
-        return new JumpInsnNode(opcode, clone(label, labels));
     }
 }

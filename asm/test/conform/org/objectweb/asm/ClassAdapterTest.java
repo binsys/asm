@@ -46,8 +46,8 @@ public class ClassAdapterTest extends AbstractTest {
 
     public void test() throws Exception {
         ClassReader cr = new ClassReader(is);
-        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        cr.accept(new ClassAdapter(cw), 0);
+        ClassWriter cw = new ClassWriter(true, true);
+        cr.accept(new ClassAdapter(cw), false);
         byte[] b = cw.toByteArray();
         try {
             LOADER.defineClass(n, b);

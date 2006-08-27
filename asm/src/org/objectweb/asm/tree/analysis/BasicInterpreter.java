@@ -72,7 +72,7 @@ public class BasicInterpreter implements Opcodes, Interpreter {
             case Type.OBJECT:
                 return BasicValue.REFERENCE_VALUE;
             default:
-                throw new Error("Internal error");
+                throw new RuntimeException("Internal error.");
         }
     }
 
@@ -124,7 +124,7 @@ public class BasicInterpreter implements Opcodes, Interpreter {
                 return newValue(Type.getType("L" + ((TypeInsnNode) insn).desc
                         + ";"));
             default:
-                throw new Error("Internal error.");
+                throw new RuntimeException("Internal error.");
         }
     }
 
@@ -226,7 +226,7 @@ public class BasicInterpreter implements Opcodes, Interpreter {
             case IFNONNULL:
                 return null;
             default:
-                throw new Error("Internal error.");
+                throw new RuntimeException("Internal error.");
         }
     }
 
@@ -280,7 +280,12 @@ public class BasicInterpreter implements Opcodes, Interpreter {
             case DREM:
                 return BasicValue.DOUBLE_VALUE;
             case AALOAD:
-                return BasicValue.REFERENCE_VALUE;
+                Type t = ((BasicValue) value1).getType();
+                if (t != null && t.getSort() == Type.ARRAY) {
+                    return newValue(t.getElementType());
+                } else {
+                    return BasicValue.REFERENCE_VALUE;
+                }
             case LCMP:
             case FCMPL:
             case FCMPG:
@@ -298,7 +303,7 @@ public class BasicInterpreter implements Opcodes, Interpreter {
             case PUTFIELD:
                 return null;
             default:
-                throw new Error("Internal error.");
+                throw new RuntimeException("Internal error.");
         }
     }
 

@@ -36,7 +36,6 @@ import org.objectweb.asm.MethodVisitor;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Map;
 
 /**
  * A node that represents a LOOKUPSWITCH instruction.
@@ -48,7 +47,7 @@ public class LookupSwitchInsnNode extends AbstractInsnNode {
     /**
      * Beginning of the default handler block.
      */
-    public LabelNode dflt;
+    public Label dflt;
 
     /**
      * The values of the keys. This list is a list of {@link Integer} objects.
@@ -56,8 +55,8 @@ public class LookupSwitchInsnNode extends AbstractInsnNode {
     public List keys;
 
     /**
-     * Beginnings of the handler blocks. This list is a list of
-     * {@link LabelNode} objects.
+     * Beginnings of the handler blocks. This list is a list of {@link Label}
+     * objects.
      */
     public List labels;
 
@@ -70,9 +69,9 @@ public class LookupSwitchInsnNode extends AbstractInsnNode {
      *        the beginning of the handler block for the <tt>keys[i]</tt> key.
      */
     public LookupSwitchInsnNode(
-        final LabelNode dflt,
+        final Label dflt,
         final int[] keys,
-        final LabelNode[] labels)
+        final Label[] labels)
     {
         super(Opcodes.LOOKUPSWITCH);
         this.dflt = dflt;
@@ -88,26 +87,17 @@ public class LookupSwitchInsnNode extends AbstractInsnNode {
         }
     }
 
-    public int getType() {
-        return LOOKUPSWITCH_INSN;
-    }
-
     public void accept(final MethodVisitor mv) {
         int[] keys = new int[this.keys.size()];
         for (int i = 0; i < keys.length; ++i) {
             keys[i] = ((Integer) this.keys.get(i)).intValue();
         }
         Label[] labels = new Label[this.labels.size()];
-        for (int i = 0; i < labels.length; ++i) {
-            labels[i] = ((LabelNode) this.labels.get(i)).getLabel();
-        }
-        mv.visitLookupSwitchInsn(dflt.getLabel(), keys, labels);
+        this.labels.toArray(labels);
+        mv.visitLookupSwitchInsn(dflt, keys, labels);
     }
 
-    public AbstractInsnNode clone(final Map labels) {
-        LookupSwitchInsnNode clone = new LookupSwitchInsnNode(clone(dflt,
-                labels), null, clone(this.labels, labels));
-        clone.keys.addAll(keys);
-        return clone;
+    public int getType() {
+        return LOOKUPSWITCH_INSN;
     }
 }

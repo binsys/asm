@@ -36,7 +36,6 @@ import org.objectweb.asm.MethodVisitor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  * A node that represents a TABLESWITCH instruction.
@@ -58,11 +57,11 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
     /**
      * Beginning of the default handler block.
      */
-    public LabelNode dflt;
+    public Label dflt;
 
     /**
-     * Beginnings of the handler blocks. This list is a list of
-     * {@link LabelNode} objects.
+     * Beginnings of the handler blocks. This list is a list of {@link Label}
+     * objects.
      */
     public List labels;
 
@@ -78,8 +77,8 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
     public TableSwitchInsnNode(
         final int min,
         final int max,
-        final LabelNode dflt,
-        final LabelNode[] labels)
+        final Label dflt,
+        final Label[] labels)
     {
         super(Opcodes.TABLESWITCH);
         this.min = min;
@@ -91,22 +90,13 @@ public class TableSwitchInsnNode extends AbstractInsnNode {
         }
     }
 
-    public int getType() {
-        return TABLESWITCH_INSN;
-    }
-
     public void accept(final MethodVisitor mv) {
         Label[] labels = new Label[this.labels.size()];
-        for (int i = 0; i < labels.length; ++i) {
-            labels[i] = ((LabelNode) this.labels.get(i)).getLabel();
-        }
-        mv.visitTableSwitchInsn(min, max, dflt.getLabel(), labels);
+        this.labels.toArray(labels);
+        mv.visitTableSwitchInsn(min, max, dflt, labels);
     }
 
-    public AbstractInsnNode clone(final Map labels) {
-        return new TableSwitchInsnNode(min,
-                max,
-                clone(dflt, labels),
-                clone(this.labels, labels));
+    public int getType() {
+        return TABLESWITCH_INSN;
     }
 }
